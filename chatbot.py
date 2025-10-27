@@ -4,8 +4,8 @@
 import streamlit as st
 from groq import Groq
 import os
-# import glob                # --- ĐÃ VÔ HIỆU HÓA ---
-# from pypdf import PdfReader  # --- ĐÃ VÔ HIỆU HÓA ---
+# import glob                # --- ĐÃ VÔ HIỆU HÓA RAG PDF ---
+# from pypdf import PdfReader  # --- ĐÃ VÔ HIỆU HÓA RAG PDF ---
 import time
 
 # --- BƯỚC 1: LẤY API KEY ---
@@ -16,7 +16,7 @@ except (KeyError, FileNotFoundError):
     st.stop()
     
 # --- BƯỚC 2: THIẾT LẬP VAI TRÒ (SYSTEM_INSTRUCTION) ---
-# --- ĐÃ ĐƠN GIẢN HÓA LẠI (BỎ CÁC CHỈ DẪN RAG PHỨC TẠP) ---
+# ‼️ ĐÂY LÀ PHẦN TINH CHỈNH THEO YÊU CẦU CỦA THẦY ‼️
 SYSTEM_INSTRUCTION = (
     "Bạn là 'Chatbook' - một Cố vấn Học tập Tin học AI toàn diện, với kiến thức cốt lõi của một "
     "giáo viên Tin học dạy giỏi cấp quốc gia, nắm vững chương trình GDPT 2018. "
@@ -39,16 +39,30 @@ SYSTEM_INSTRUCTION = (
     
     "5. **Trợ lý Ôn tập (Củng cố):** Khi được yêu cầu, bạn sẽ tạo các câu hỏi trắc nghiệm, "
     "câu hỏi tự luận, tóm tắt bài học, hoặc giải thích các dạng bài tập "
-    "để giúp học sinh củng cố kiến thức trước kỳ thi. "
+    "để giúp học sinh củngB cố kiến thức trước kỳ thi. "
     
     "6. **Cố vấn Định hướng (Tương lai):** Cung cấp thông tin cơ bản về các ngành nghề "
     "trong lĩnh vực CNTT, các kỹ năng quan trọng cần có, và gợi ý lộ trình "
     "học tập để các em có cái nhìn sớm về tương lai. "
+
+    "\n--- QUY TẮC TƯƠNG TÁC QUAN TRỌNG ---\n"
     
-    "Khi tương tác, hãy luôn giữ giọng văn chuyên nghiệp nhưng thân thiện, "
-    "tập trung 100% vào nội dung chương trình 2018 và các ứng dụng thực tế của nó."
-    "Nếu câu hỏi KHÔNG liên quan đến Tin học, lập trình, hoặc Office, hãy trả lời rằng "
-    "chuyên môn chính của bạn là Tin học, nhưng bạn có thể thử trả lời nếu biết."
+    "1. **Ngữ điệu:** Luôn giữ giọng văn chuyên nghiệp, sư phạm nhưng thân thiện và gần gũi."
+    
+    "2. **Phạm vi:** Tập trung 100% vào nội dung chương trình GDPT 2018 và các ứng dụng thực tế. "
+    "Nếu câu hỏi ngoài phạm vi (ví dụ: Toán, Lý, Hóa), hãy thông báo rằng chuyên môn của bạn là Tin học, "
+    "nhưng bạn có thể thử trả lời nếu đó là kiến thức phổ thông."
+    
+    "3. **Xử lý ngôn ngữ (Rất quan trọng):** Bạn phải cực kỳ linh hoạt với ngôn ngữ tiếng Việt. "
+    "Hãy **chủ động suy đoán** ý định của học sinh ngay cả khi các em: "
+    "- Gõ **sai chính tả**."
+    "- Gõ **không dấu** (ví dụ: 'tin hoc van phong')."
+    "- Dùng **từ lóng** hoặc **từ mượn** (ví dụ: 'gg' là Google, 'heard' có thể là 'header' (đầu trang), "
+    "'load' là 'tải', 'check' là 'kiểm tra')."
+    
+    "4. **Làm rõ ý:** Nếu một câu hỏi quá mơ hồ hoặc không rõ ràng, đừng vội trả lời 'Tôi không hiểu'. "
+    "Thay vào đó, hãy **đặt câu hỏi ngược lại** để giúp học sinh làm rõ yêu cầu."
+    "(Ví dụ: 'Câu hỏi của em có vẻ hơi tắt, ý của em có phải là header (đầu trang) trong Word không?')"
 )
 
 # --- BƯỚC 3: KHỞI TẠO CLIENT VÀ CHỌN MÔ HÌNH ---
@@ -102,11 +116,6 @@ with st.sidebar:
 
 # --- BƯỚC 4.6: CÁC HÀM RAG (ĐỌC "SỔ TAY" TỪ PDF) --- 
 # --- TOÀN BỘ BƯỚC NÀY ĐÃ ĐƯỢC VÔ HIỆU HÓA ---
-# @st.cache_data(ttl=3600) 
-# def load_and_chunk_pdfs():
-#     ... (đã xóa) ...
-# def find_relevant_knowledge(query, knowledge_chunks, num_chunks=3):
-#     ... (đã xóa) ...
 
 
 # --- BƯỚC 5: KHỞI TẠO LỊCH SỬ CHAT ---
@@ -114,10 +123,6 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 # --- PHẦN TẢI PDF ĐÃ ĐƯỢC VÔ HIỆU HÓA ---
-# if "knowledge_chunks" not in st.session_state:
-#     with st.spinner("Đang tải và xử lý tài liệu (PDF)..."):
-#         st.session_state.knowledge_chunks = [] # Tắt đi
-#         print("Đã tắt RAG PDF.")
 
 
 # --- BƯỚC 6: HIỂN THỊ LỊCH SỬ CHAT ---
@@ -208,22 +213,4 @@ if prompt:
             
             # 2.5. Lặp qua từng "mẩu" (chunk) API trả về (Vẫn giữ hiệu ứng)
             for chunk in stream:
-                if chunk.choices[0].delta.content is not None: 
-                    bot_response_text += chunk.choices[0].delta.content
-                    placeholder.markdown(bot_response_text + "▌")
-                    time.sleep(0.005) # Giữ hiệu ứng gõ chữ
-            
-            placeholder.markdown(bot_response_text)
-
-    except Exception as e:
-        with st.chat_message("assistant", avatar="✨"):
-            st.error(f"Xin lỗi, đã xảy ra lỗi khi kết nối Groq: {e}")
-        bot_response_text = ""
-
-    # 3. Thêm câu trả lời của bot vào lịch sử
-    if bot_response_text:
-        st.session_state.messages.append({"role": "assistant", "content": bot_response_text})
-
-    # 4. Rerun nếu bấm nút
-    if prompt_from_button:
-        st.rerun()
+                if
