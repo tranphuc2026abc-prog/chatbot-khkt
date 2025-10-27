@@ -1,12 +1,11 @@
 # Chạy bằng lệnh: streamlit run chatbot.py
 # ‼️ Yêu cầu cài đặt: pip install groq streamlit pypdf
-
 import streamlit as st
 from groq import Groq
 import os
-import glob                # <--- MỚI: Thư viện tìm file
-from pypdf import PdfReader  # <--- MỚI: Thư viện đọc PDF
-
+import glob
+from pypdf import PdfReader
+import time # <--- THÊM DÒNG NÀY
 # --- BƯỚC 1: LẤY API KEY ---
 try:
     api_key = st.secrets["GROQ_API_KEY"]
@@ -21,12 +20,12 @@ SYSTEM_INSTRUCTION = (
     "Nhiệm vụ của bạn là hỗ trợ học sinh THCS/THPT một cách toàn diện. "
     
     # ... (Toàn bộ 6 nhiệm vụ của thầy vẫn giữ nguyên ở đây) ...
-    "1. **Gia sư Chuyên môn (Lý thuyết):** ... "
-    "2. **Mentor Lập trình (Thực hành Code):** ... "
-    "3. **Người hướng dẫn Dự án (Sáng tạo):** ... "
-    "4. **Chuyên gia Tin học Văn phòng (Ứng dụng):** ... "
-    "5. **Trợ lý Ôn tập (Củng cố):** ... "
-    "6. **Cố vấn Định hướng (Tương lai):** ... "
+    "1. **Gia sư Chuyên môn (Lý thuyết):** ... " # (Giữ nguyên)
+    "2. **Mentor Lập trình (Thực hành Code):** ... " # (Giữ nguyên)
+    "3. **Người hướng dẫn Dự án (Sáng tạo):** ... " # (Giữ nguyên)
+    "4. **Chuyên gia Tin học Văn phòng (Ứng dụng):** ... " # (Giữ nguyên)
+    "5. **Trợ lý Ôn tập (Củng cố):** ... " # (Giữ nguyên)
+    "6. **Cố vấn Định hướng (Tương lai):** ... " # (Giữ nguyên)
     
     "Khi tương tác, hãy luôn giữ giọng văn chuyên nghiệp nhưng thân thiện, "
     "tập trung 100% vào nội dung chương trình 2018 và các ứng dụng thực tế của nó."
@@ -38,7 +37,7 @@ SYSTEM_INSTRUCTION = (
     "1. Đầu tiên, hãy **KIỂM TRA** xem thông tin tra cứu đó có **LIÊN QUAN TRỰC TIẾP** đến câu hỏi của học sinh không."
     "2. **Nếu CÓ liên quan:** Hãy dựa vào thông tin đó để trả lời."
     "3. **Nếu KHÔNG liên quan:** (Ví dụ: học sinh hỏi về Excel nhưng thông tin tra cứu lại nói về PowerPoint) "
-    "Hãy **BỎ QUA** thông tin tra cứu đó và trả lời câu hỏi bằng kiến thức chung của bạn mà **KHÔNG ĐƯỢC PHÊ PHÁN** câu hỏi của học sinh."
+    "Hãy **BỎ QUA** thông tin tra cứu đó và trả lời câu hỏi bằng kiến thức chung của bạn mà **KHÔNG ĐƯỢC PHÊ PHÁN** hay đề cập đến sự không liên quan của tài liệu."
 )
 # --- BƯỚC 3: KHỞI TẠO CLIENT VÀ CHỌN MÔ HÌNH ---
 try:
@@ -289,6 +288,7 @@ if prompt:
                 if chunk.choices[0].delta.content is not None: 
                     bot_response_text += chunk.choices[0].delta.content
                     placeholder.markdown(bot_response_text + "▌")
+		    time.sleep(0.005)
             
             placeholder.markdown(bot_response_text)
 
