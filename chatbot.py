@@ -1,5 +1,5 @@
-# Chạy bằng lệnh: streamlit run web_chatboot.py
-# ‼️ Yêu cầu cài đặt: pip install groq
+# Chạy bằng lệnh: streamlit run chatbot.py
+# ‼️ Yêu cầu cài đặt: pip install groq streamlit google-generativeai
 
 import streamlit as st
 from groq import Groq
@@ -7,8 +7,13 @@ import os
 
 # --- BƯỚC 1: LẤY API KEY (Đổi sang Groq) ---
 # Lấy key từ https://console.groq.com/keys
-import streamlit as st
-api_key = st.secrets["GROQ_API_KEY"] 
+# File này sẽ đọc key từ "Secrets" của Streamlit Cloud
+try:
+    api_key = st.secrets["GROQ_API_KEY"]
+except (KeyError, FileNotFoundError):
+    st.error("Lỗi: Không tìm thấy GROQ_API_KEY. Vui lòng thêm vào Secrets trên Streamlit Cloud.")
+    st.stop()
+    
 # --- BƯỚC 2: THIẾT LẬP VAI TRÒ (SYSTEM INSTRUCTION) ---
 SYSTEM_INSTRUCTION = (
     "Bạn là 'Chatbook' - một Cố vấn Học tập Tin học AI toàn diện, với kiến thức cốt lõi của một "
@@ -45,12 +50,9 @@ SYSTEM_INSTRUCTION = (
 # --- BƯỚC 3: KHỞI TẠO CLIENT VÀ CHỌN MÔ HÌNH (Đổi sang Groq) ---
 
 try:
-    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+    client = Groq(api_key=api_key) # Sử dụng biến api_key đã lấy từ st.secrets
 except Exception as e:
-    if "api_key" in str(e).lower() or "missing" in str(e).lower():
-        st.error(f"Lỗi API Key: Vui lòng kiểm tra lại GROQ_API_KEY ở dòng 11. Lỗi chi tiết: {e}")
-    else:
-        st.error(f"Lỗi khi cấu hình API Groq: {e}")
+    st.error(f"Lỗi khi cấu hình API Groq: {e}")
     st.stop()
 
 MODEL_NAME = 'llama-3.1-8b-instant'
@@ -137,19 +139,24 @@ for message in st.session_state.messages:
 
 # --- BƯỚC 7: MÀN HÌNH CHÀO MỪNG VÀ GỢI Ý ---
 
-# LƯU Ý: Dòng 'import streamlit as st' thầy nên dời lên ĐẦU TIÊN của file code nhé!
-import streamlit as st 
-
 # --- PHẦN TIÊU ĐỀ VÀ LOGO (LUÔN HIỂN THỊ) ---
 # Em dời phần này ra ngoài khối 'if' để nó luôn xuất hiện
-logo_path = "logo.jpg"
+
+# ‼️ SỬA LỖI QUAN TRỌNG: Tên file phải khớp 100% với file tải lên GitHub
+# File của thầy tên là "LOGO.jpg" (viết hoa) nên em sửa lại ở đây.
+logo_path = "LOGO.jpg" 
 col1, col2 = st.columns([1, 5])  # Tỷ lệ 1:5 (logo nhỏ, tiêu đề lớn)
 
 with col1:
-    st.image(logo_path, width=80)  # Hiển thị logo
+    try:
+        st.image(logo_path, width=80)  # Hiển thị logo
+    except Exception as e:
+        st.error(f"Lỗi: Không tìm thấy file logo tên là '{logo_path}'. Vui lòng kiểm tra lại tên file trên GitHub.")
+        st.stop()
+
 
 with col2:
-    st.title("KCT. Chat boot hỗ trợ môn Tin Học") # Tiêu đề mới của thầy
+    st.title("KCT. Chatbot hỗ trợ môn Tin Học") # Sửa lỗi typo "Chat boot"
 
 # --- HÀM HỖ TRỢ NÚT BẤM (ĐÃ CHUẨN) ---
 def set_prompt_from_suggestion(text):
@@ -157,9 +164,6 @@ def set_prompt_from_suggestion(text):
 
 # --- HIỂN THỊ MÀN HÌNH CHÀO VÀ GỢI Ý (CHỈ KHI MỚI VÀO) ---
 if not st.session_state.messages:
-    # PHẦN NÀY ĐÃ SỬA LỖI THỤT LỀ:
-    # 'st.markdown' (câu chào) và 'col1, col2' (nút bấm)
-    # giờ được thụt vào BÊN TRONG 'if', và thẳng hàng nhau.
     
     st.markdown(f"<div class='welcome-message'>Xin chào! Thầy/em cần hỗ trợ gì về môn Tin học (Chương trình 2018)?</div>", unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
