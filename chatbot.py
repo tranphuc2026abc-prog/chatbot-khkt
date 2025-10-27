@@ -288,9 +288,9 @@ if prompt:
                 if chunk.choices[0].delta.content is not None: 
                     bot_response_text += chunk.choices[0].delta.content
                     placeholder.markdown(bot_response_text + "▌")
-		    time.sleep(0.005)
+                    time.sleep(0.005) # <--- THÊM DÒNG NÀY ĐỂ TẠO HIỆU ỨNG
             
-            placeholder.markdown(bot_response_text)
+            placeholder.markdown(bot_response_text) # Xóa dấu ▌ khi hoàn tất
 
     except Exception as e:
         with st.chat_message("assistant", avatar="✨"):
