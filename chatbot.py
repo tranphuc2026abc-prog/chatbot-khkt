@@ -1,11 +1,13 @@
 # Chạy bằng lệnh: streamlit run chatbot.py
-# ‼️ Yêu cầu cài đặt: pip install groq streamlit pypdf
+# ‼️ Yêu cầu cài đặt: pip install groq streamlit
+
 import streamlit as st
 from groq import Groq
 import os
-import glob
-from pypdf import PdfReader
-import time # <--- THÊM DÒNG NÀY
+# import glob                # --- ĐÃ VÔ HIỆU HÓA ---
+# from pypdf import PdfReader  # --- ĐÃ VÔ HIỆU HÓA ---
+import time
+
 # --- BƯỚC 1: LẤY API KEY ---
 try:
     api_key = st.secrets["GROQ_API_KEY"]
@@ -14,31 +16,41 @@ except (KeyError, FileNotFoundError):
     st.stop()
     
 # --- BƯỚC 2: THIẾT LẬP VAI TRÒ (SYSTEM_INSTRUCTION) ---
+# --- ĐÃ ĐƠN GIẢN HÓA LẠI (BỎ CÁC CHỈ DẪN RAG PHỨC TẠP) ---
 SYSTEM_INSTRUCTION = (
     "Bạn là 'Chatbook' - một Cố vấn Học tập Tin học AI toàn diện, với kiến thức cốt lõi của một "
     "giáo viên Tin học dạy giỏi cấp quốc gia, nắm vững chương trình GDPT 2018. "
     "Nhiệm vụ của bạn là hỗ trợ học sinh THCS/THPT một cách toàn diện. "
     
-    # ... (Toàn bộ 6 nhiệm vụ của thầy vẫn giữ nguyên ở đây) ...
-    "1. **Gia sư Chuyên môn (Lý thuyết):** ... " # (Giữ nguyên)
-    "2. **Mentor Lập trình (Thực hành Code):** ... " # (Giữ nguyên)
-    "3. **Người hướng dẫn Dự án (Sáng tạo):** ... " # (Giữ nguyên)
-    "4. **Chuyên gia Tin học Văn phòng (Ứng dụng):** ... " # (Giữ nguyên)
-    "5. **Trợ lý Ôn tập (Củng cố):** ... " # (Giữ nguyên)
-    "6. **Cố vấn Định hướng (Tương lai):** ... " # (Giữ nguyên)
+    "1. **Gia sư Chuyên môn (Lý thuyết):** Giải đáp mọi thắc mắc về lý thuyết môn Tin học "
+    "(từ lớp 6-12) một cách chính xác, sư phạm, và đi thẳng vào vấn đề. "
+    
+    "2. **Mentor Lập trình (Thực hành Code):** Cung cấp code mẫu (Python, C++, Pascal), "
+    "hỗ trợ gỡ lỗi (debug), tối ưu hóa code, và giải thích các thuật toán "
+    "hoặc cấu trúc dữ liệu một cách trực quan, dễ hiểu. "
+    
+    "3. **Người hướng dẫn Dự án (Sáng tạo):** Giúp học sinh lên ý tưởng, xây dựng kế hoạch "
+    "cho các dự án học tập (ví dụ: làm bài tập lớn, dự án KHKT). "
+    "Chủ động gợi ý các chủ đề liên quan đến bài học. "
+    
+    "4. **Chuyên gia Tin học Văn phòng (Ứng dụng):** Hướng dẫn chi tiết cách sử dụng "
+    "các công cụ Microsoft Office (Word, Excel, PowerPoint) để áp dụng vào bài học, "
+    "làm báo cáo, thuyết trình, hay xử lý dữ liệu. "
+    
+    "5. **Trợ lý Ôn tập (Củng cố):** Khi được yêu cầu, bạn sẽ tạo các câu hỏi trắc nghiệm, "
+    "câu hỏi tự luận, tóm tắt bài học, hoặc giải thích các dạng bài tập "
+    "để giúp học sinh củng cố kiến thức trước kỳ thi. "
+    
+    "6. **Cố vấn Định hướng (Tương lai):** Cung cấp thông tin cơ bản về các ngành nghề "
+    "trong lĩnh vực CNTT, các kỹ năng quan trọng cần có, và gợi ý lộ trình "
+    "học tập để các em có cái nhìn sớm về tương lai. "
     
     "Khi tương tác, hãy luôn giữ giọng văn chuyên nghiệp nhưng thân thiện, "
     "tập trung 100% vào nội dung chương trình 2018 và các ứng dụng thực tế của nó."
     "Nếu câu hỏi KHÔNG liên quan đến Tin học, lập trình, hoặc Office, hãy trả lời rằng "
-    "chuyên môn chính của bạn là Tin học."
-    
-    # --- PHẦN SỬA LỖI QUAN TRỌNG NẰM Ở ĐÂY ---
-    "TRỪ KHI: Nếu bạn được cung cấp 'Thông tin tra cứu' (context) từ tài liệu: "
-    "1. Đầu tiên, hãy **KIỂM TRA** xem thông tin tra cứu đó có **LIÊN QUAN TRỰC TIẾP** đến câu hỏi của học sinh không."
-    "2. **Nếu CÓ liên quan:** Hãy dựa vào thông tin đó để trả lời."
-    "3. **Nếu KHÔNG liên quan:** (Ví dụ: học sinh hỏi về Excel nhưng thông tin tra cứu lại nói về PowerPoint) "
-    "Hãy **BỎ QUA** thông tin tra cứu đó và trả lời câu hỏi bằng kiến thức chung của bạn mà **KHÔNG ĐƯỢC PHÊ PHÁN** hay đề cập đến sự không liên quan của tài liệu."
+    "chuyên môn chính của bạn là Tin học, nhưng bạn có thể thử trả lời nếu biết."
 )
+
 # --- BƯỚC 3: KHỞI TẠO CLIENT VÀ CHỌN MÔ HÌNH ---
 try:
     client = Groq(api_key=api_key) 
@@ -73,7 +85,7 @@ with st.sidebar:
     
     if st.button("➕ Cuộc trò chuyện mới", use_container_width=True):
         st.session_state.messages = []
-        st.session_state.pop("knowledge_chunks", None) # Xóa cache kiến thức
+        # st.session_state.pop("knowledge_chunks", None) # --- ĐÃ VÔ HIỆU HÓA ---
         st.rerun()
 
     st.markdown("---")
@@ -88,99 +100,24 @@ with st.sidebar:
     st.caption(f"Model: {MODEL_NAME}")
 
 
-# --- BƯỚC 4.6: CÁC HÀM RAG (ĐỌC "SỔ TAY" TỪ PDF) --- # <--- ĐÃ VIẾT LẠI HOÀN TOÀN
-
-# HÀM 1: Tải, bóc tách và "cắt mẩu" (chunk) các file PDF
-# @st.cache_data sẽ lưu lại kết quả, chỉ chạy 1 lần (cho đến khi cache bị xóa)
-@st.cache_data(ttl=3600) # Cache trong 1 giờ
-def load_and_chunk_pdfs():
-    knowledge_chunks = []
-    
-    # 1. Tìm tất cả file .pdf trong thư mục
-    pdf_files = glob.glob("*.pdf") 
-    
-    if not pdf_files:
-        print("Cảnh báo: Không tìm thấy file PDF nào.")
-        return []
-
-    print(f"Tìm thấy {len(pdf_files)} file PDF: {pdf_files}")
-    
-    # 2. Lặp qua từng file PDF
-    for pdf_path in pdf_files:
-        print(f"Đang xử lý file: {pdf_path}")
-        try:
-            reader = PdfReader(pdf_path)
-            # 3. Lặp qua từng trang trong file
-            for page in reader.pages:
-                text = page.extract_text() # Bóc tách chữ
-                if text:
-                    # 4. "Cắt mẩu" (Chunking) - Phương pháp đơn giản:
-                    # Tách các đoạn văn dựa trên dấu xuống dòng kép (\n\n)
-                    chunks = text.split('\n\n')
-                    
-                    # 5. Thêm các mẩu (đã làm sạch) vào kho kiến thức
-                    for chunk in chunks:
-                        cleaned_chunk = chunk.strip()
-                        if cleaned_chunk:
-                            # Thêm nguồn để biết mẩu này từ đâu (tùy chọn)
-                            knowledge_chunks.append(f"[Nguồn: {pdf_path}] {cleaned_chunk}") 
-                            
-        except Exception as e:
-            print(f"LỖI khi đọc file {pdf_path}: {e}")
-            
-    print(f"Đã bóc tách và tạo được {len(knowledge_chunks)} mẩu kiến thức (chunks).")
-    return knowledge_chunks
-
-# HÀM 2: Tìm kiến thức (Retrieve)
-def find_relevant_knowledge(query, knowledge_chunks, num_chunks=3):
-    query_lower = query.lower()
-    
-    # 1. Tách từ khóa cơ bản từ câu hỏi
-    # (Bỏ qua các từ chung như 'là', 'gì', 'của'...)
-    common_words = {'là', 'gì', 'của', 'và', 'một', 'cách', 'để', 'trong', 'với'}
-    query_keywords = set(query_lower.split()) - common_words
-    
-    relevant_chunks = []
-    
-    # 2. Tìm kiếm (Cách đơn giản: đếm số từ khóa xuất hiện)
-    chunk_scores = []
-    for i, chunk in enumerate(knowledge_chunks):
-        chunk_lower = chunk.lower()
-        score = 0
-        for keyword in query_keywords:
-            if keyword in chunk_lower:
-                score += 1
-        
-        if score > 0:
-            chunk_scores.append((score, i, chunk))
-    
-    # 3. Sắp xếp các mẩu theo điểm số (từ cao đến thấp)
-    chunk_scores.sort(key=lambda x: x[0], reverse=True)
-    
-    # 4. Lấy N mẩu có điểm cao nhất
-    top_chunks = [chunk for score, i, chunk in chunk_scores[:num_chunks]]
-    
-    if not top_chunks:
-        return None # Không tìm thấy
-        
-    print(f"Đã tìm thấy {len(top_chunks)} mẩu liên quan.")
-    return "\n---\n".join(top_chunks)
+# --- BƯỚC 4.6: CÁC HÀM RAG (ĐỌC "SỔ TAY" TỪ PDF) --- 
+# --- TOÀN BỘ BƯỚC NÀY ĐÃ ĐƯỢC VÔ HIỆU HÓA ---
+# @st.cache_data(ttl=3600) 
+# def load_and_chunk_pdfs():
+#     ... (đã xóa) ...
+# def find_relevant_knowledge(query, knowledge_chunks, num_chunks=3):
+#     ... (đã xóa) ...
 
 
-# --- BƯỚC 5: KHỞI TẠO LỊCH SỬ CHAT VÀ "SỔ TAY" PDF --- # <--- ĐÃ NÂNG CẤP
+# --- BƯỚC 5: KHỞI TẠO LỊCH SỬ CHAT ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Tải và xử lý PDF khi app khởi động
-if "knowledge_chunks" not in st.session_state:
-    # Hiển thị thông báo chờ...
-    with st.spinner("Đang tải và xử lý tài liệu (PDF)..."):
-        st.session_state.knowledge_chunks = load_and_chunk_pdfs()
-        
-        if not st.session_state.knowledge_chunks:
-            print("Cảnh báo: Không có kiến thức nào được tải từ file PDF.")
-        else:
-            print(f"Đã tải {len(st.session_state.knowledge_chunks)} mẩu kiến thức vào session.")
+# --- PHẦN TẢI PDF ĐÃ ĐƯỢC VÔ HIỆU HÓA ---
+# if "knowledge_chunks" not in st.session_state:
+#     with st.spinner("Đang tải và xử lý tài liệu (PDF)..."):
+#         st.session_state.knowledge_chunks = [] # Tắt đi
+#         print("Đã tắt RAG PDF.")
 
 
 # --- BƯỚC 6: HIỂN THỊ LỊCH SỬ CHAT ---
@@ -207,7 +144,7 @@ def set_prompt_from_suggestion(text):
 if not st.session_state.messages:
     st.markdown(f"<div class='welcome-message'>Xin chào! Thầy/em cần hỗ trợ gì về môn Tin học (Chương trình 2018)?</div>", unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
-    # ... (Toàn bộ các nút bấm gợi ý của thầy giữ nguyên) ...
+    
     col1_btn, col2_btn = st.columns(2)
     with col1_btn:
         st.button(
@@ -233,7 +170,7 @@ if not st.session_state.messages:
         )
 
 
-# --- BƯỚC 8: XỬ LÝ INPUT (ĐÃ NÂNG CẤP RAG PDF) --- # <--- ĐÃ CẬP NHẬT
+# --- BƯỚC 8: XỬ LÝ INPUT (ĐÃ TẮT RAG PDF) --- 
 prompt_from_input = st.chat_input("Mời thầy hoặc các em đặt câu hỏi về Tin học...")
 prompt_from_button = st.session_state.pop("prompt_from_button", None)
 prompt = prompt_from_button or prompt_from_input
@@ -250,31 +187,17 @@ if prompt:
             placeholder = st.empty()
             bot_response_text = ""
 
-            # --- PHẦN RAG MỚI BẮT ĐẦU TẠI ĐÂY --- #
-            
-            # 2.1. Tìm kiếm trong kho kiến thức PDF
-            retrieved_context = find_relevant_knowledge(prompt, st.session_state.knowledge_chunks)
+            # --- PHẦN RAG ĐÃ ĐƯỢC VÔ HIỆU HÓA ---
             
             # 2.2. Chuẩn bị list tin nhắn gửi cho AI
             messages_to_send = [
                 {"role": "system", "content": SYSTEM_INSTRUCTION}
             ]
             
-            # 2.3. Nếu "sổ tay" PDF có thông tin, thêm vào làm ngữ cảnh
-            if retrieved_context:
-                context_prompt = (
-                    f"**Thông tin tra cứu (Hãy ưu tiên dùng thông tin này để trả lời):**\n"
-                    f"{retrieved_context}\n\n"
-                    f"**Câu hỏi của học sinh:**\n"
-                    f"{prompt}"
-                )
-                messages_to_send.append({"role": "user", "content": context_prompt})
-            else:
-                # Nếu không tìm thấy, gửi lịch sử chat như bình thường
-                print("Không tìm thấy mẩu kiến thức (chunk) nào liên quan. Trả lời bình thường.")
-                messages_to_send.extend(st.session_state.messages)
+            # 2.3. Gửi toàn bộ lịch sử chat (KHÔNG CÓ RAG PDF)
+            messages_to_send.extend(st.session_state.messages) 
             
-            # --- KẾT THÚC PHẦN RAG --- #
+            # --- KẾT THÚC PHẦN VÔ HIỆU HÓA ---
 
             # 2.4. Gọi API Groq
             stream = client.chat.completions.create(
@@ -283,14 +206,14 @@ if prompt:
                 stream=True
             )
             
-            # 2.5. Lặp qua từng "mẩu" (chunk) API trả về
+            # 2.5. Lặp qua từng "mẩu" (chunk) API trả về (Vẫn giữ hiệu ứng)
             for chunk in stream:
                 if chunk.choices[0].delta.content is not None: 
                     bot_response_text += chunk.choices[0].delta.content
                     placeholder.markdown(bot_response_text + "▌")
-                    time.sleep(0.005) # <--- THÊM DÒNG NÀY ĐỂ TẠO HIỆU ỨNG
+                    time.sleep(0.005) # Giữ hiệu ứng gõ chữ
             
-            placeholder.markdown(bot_response_text) # Xóa dấu ▌ khi hoàn tất
+            placeholder.markdown(bot_response_text)
 
     except Exception as e:
         with st.chat_message("assistant", avatar="✨"):
