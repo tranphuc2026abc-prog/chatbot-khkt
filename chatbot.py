@@ -186,4 +186,54 @@ if prompt:
         st.markdown(prompt)
 
     # 2. Gửi câu hỏi đến Groq
-    try
+    try:
+        with st.chat_message("assistant", avatar="✨"):
+            placeholder = st.empty()
+            bot_response_text = ""
+
+            # --- PHẦN RAG MỚI ĐÃ BỊ VÔ HIỆU HÓA --- #
+            
+            # 2.1. (BỎ QUA) Tìm kiếm trong kho kiến thức PDF
+            # retrieved_context = find_relevant_knowledge(prompt, st.session_state.knowledge_chunks)
+            
+            # 2.2. Chuẩn bị list tin nhắn gửi cho AI (Không dùng RAG)
+            messages_to_send = [
+                {"role": "system", "content": SYSTEM_INSTRUCTION}
+            ]
+            
+            # 2.3. (BỎ QUA) logic 'if retrieved_context:'
+            
+            # Thay vào đó, chúng ta gửi toàn bộ lịch sử chat như bình thường
+            print("RAG đã tắt. Trả lời bình thường dựa trên lịch sử chat.")
+            messages_to_send.extend(st.session_state.messages)
+            
+            # --- KẾT THÚC PHẦN RAG BỊ VÔ HIỆU HÓA --- #
+
+            # 2.4. Gọi API Groq
+            stream = client.chat.completions.create(
+                messages=messages_to_send, # Gửi lịch sử chat tiêu chuẩn
+                model=MODEL_NAME,
+                stream=True
+            )
+            
+            # 2.5. Lặp qua từng "mẩu" (chunk) API trả về
+            for chunk in stream:
+                if chunk.choices[0].delta.content is not None: 
+                    bot_response_text += chunk.choices[0].delta.content
+                    placeholder.markdown(bot_response_text + "▌")
+                    time.sleep(0.005) # <--- Tạo hiệu ứng
+            
+            placeholder.markdown(bot_response_text) # Xóa dấu ▌ khi hoàn tất
+
+    except Exception as e:
+        with st.chat_message("assistant", avatar="✨"):
+            st.error(f"Xin lỗi, đã xảy ra lỗi khi kết nối Groq: {e}")
+        bot_response_text = ""
+
+    # 3. Thêm câu trả lời của bot vào lịch sử
+    if bot_response_text:
+        st.session_state.messages.append({"role": "assistant", "content": bot_response_text})
+
+    # 4. Rerun nếu bấm nút
+    if prompt_from_button:
+        st.rerun()
