@@ -45,9 +45,7 @@ SYSTEM_INSTRUCTION = (
 # --- BƯỚC 3: KHỞI TẠO CLIENT VÀ CHỌN MÔ HÌNH (Đổi sang Groq) ---
 
 try:
-    client = Groq(
-        api_key=GROQ_API_KEY, 
-    )
+    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 except Exception as e:
     if "api_key" in str(e).lower() or "missing" in str(e).lower():
         st.error(f"Lỗi API Key: Vui lòng kiểm tra lại GROQ_API_KEY ở dòng 11. Lỗi chi tiết: {e}")
