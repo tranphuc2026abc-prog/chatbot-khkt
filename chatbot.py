@@ -1,10 +1,17 @@
 # Chạy bằng lệnh: streamlit run chatbot.py
-# ‼️ Yêu cầu cài đặt: pip install groq streamlit pypdf
+# ‼️ Yêu cầu cài đặt: pip install groq streamlit
+# (Lưu ý: Pypdf không còn cần thiết nếu thầy tắt RAG, nhưng để đó cũng không sao)
 import streamlit as st
 from groq import Groq
 import os
 import glob
-import time # <--- THÊM DÒNG NÀY
+import time
+#
+# *** LƯU Ý: Thầy có thể comment out (thêm #) dòng import pypdf ở đầu file nếu có
+# vì chúng ta không còn dùng đến nó.
+# Ví dụ: # from pypdf import PdfReader
+#
+
 # --- BƯỚC 1: LẤY API KEY ---
 try:
     api_key = st.secrets["GROQ_API_KEY"]
@@ -32,6 +39,7 @@ SYSTEM_INSTRUCTION = (
     "chuyên môn chính của bạn là Tin học."
     
     # --- PHẦN SỬA LỖI QUAN TRỌNG NẰM Ở ĐÂY ---
+    # (Phần này không còn tác dụng vì RAG đã bị tắt, nhưng giữ lại cũng không sao)
     "TRỪ KHI: Nếu bạn được cung cấp 'Thông tin tra cứu' (context) từ tài liệu: "
     "1. Đầu tiên, hãy **KIỂM TRA** xem thông tin tra cứu đó có **LIÊN QUAN TRỰC TIẾP** đến câu hỏi của học sinh không."
     "2. **Nếu CÓ liên quan:** Hãy dựa vào thông tin đó để trả lời."
@@ -87,99 +95,33 @@ with st.sidebar:
     st.caption(f"Model: {MODEL_NAME}")
 
 
-# --- BƯỚC 4.6: CÁC HÀM RAG (ĐỌC "SỔ TAY" TỪ PDF) --- # <--- ĐÃ VIẾT LẠI HOÀN TOÀN
+# --- BƯỚC 4.6: CÁC HÀM RAG (ĐỌC "SỔ TAY" TỪ PDF) --- #
+# (Các hàm này vẫn được định nghĩa, nhưng sẽ không được gọi nữa)
 
-# HÀM 1: Tải, bóc tách và "cắt mẩu" (chunk) các file PDF
-# @st.cache_data sẽ lưu lại kết quả, chỉ chạy 1 lần (cho đến khi cache bị xóa)
-@st.cache_data(ttl=3600) # Cache trong 1 giờ
+@st.cache_data(ttl=3600) 
 def load_and_chunk_pdfs():
-    knowledge_chunks = []
-    
-    # 1. Tìm tất cả file .pdf trong thư mục
-    pdf_files = glob.glob("*.pdf") 
-    
-    if not pdf_files:
-        print("Cảnh báo: Không tìm thấy file PDF nào.")
-        return []
+    # Sẽ không chạy vì chúng ta đã vô hiệu hóa ở BƯỚC 5
+    print("HÀM 'load_and_chunk_pdfs' SẼ KHÔNG ĐƯỢC GỌI.")
+    return []
 
-    print(f"Tìm thấy {len(pdf_files)} file PDF: {pdf_files}")
-    
-    # 2. Lặp qua từng file PDF
-    for pdf_path in pdf_files:
-        print(f"Đang xử lý file: {pdf_path}")
-        try:
-            reader = PdfReader(pdf_path)
-            # 3. Lặp qua từng trang trong file
-            for page in reader.pages:
-                text = page.extract_text() # Bóc tách chữ
-                if text:
-                    # 4. "Cắt mẩu" (Chunking) - Phương pháp đơn giản:
-                    # Tách các đoạn văn dựa trên dấu xuống dòng kép (\n\n)
-                    chunks = text.split('\n\n')
-                    
-                    # 5. Thêm các mẩu (đã làm sạch) vào kho kiến thức
-                    for chunk in chunks:
-                        cleaned_chunk = chunk.strip()
-                        if cleaned_chunk:
-                            # Thêm nguồn để biết mẩu này từ đâu (tùy chọn)
-                            knowledge_chunks.append(f"[Nguồn: {pdf_path}] {cleaned_chunk}") 
-                            
-        except Exception as e:
-            print(f"LỖI khi đọc file {pdf_path}: {e}")
-            
-    print(f"Đã bóc tách và tạo được {len(knowledge_chunks)} mẩu kiến thức (chunks).")
-    return knowledge_chunks
-
-# HÀM 2: Tìm kiến thức (Retrieve)
 def find_relevant_knowledge(query, knowledge_chunks, num_chunks=3):
-    query_lower = query.lower()
-    
-    # 1. Tách từ khóa cơ bản từ câu hỏi
-    # (Bỏ qua các từ chung như 'là', 'gì', 'của'...)
-    common_words = {'là', 'gì', 'của', 'và', 'một', 'cách', 'để', 'trong', 'với'}
-    query_keywords = set(query_lower.split()) - common_words
-    
-    relevant_chunks = []
-    
-    # 2. Tìm kiếm (Cách đơn giản: đếm số từ khóa xuất hiện)
-    chunk_scores = []
-    for i, chunk in enumerate(knowledge_chunks):
-        chunk_lower = chunk.lower()
-        score = 0
-        for keyword in query_keywords:
-            if keyword in chunk_lower:
-                score += 1
-        
-        if score > 0:
-            chunk_scores.append((score, i, chunk))
-    
-    # 3. Sắp xếp các mẩu theo điểm số (từ cao đến thấp)
-    chunk_scores.sort(key=lambda x: x[0], reverse=True)
-    
-    # 4. Lấy N mẩu có điểm cao nhất
-    top_chunks = [chunk for score, i, chunk in chunk_scores[:num_chunks]]
-    
-    if not top_chunks:
-        return None # Không tìm thấy
-        
-    print(f"Đã tìm thấy {len(top_chunks)} mẩu liên quan.")
-    return "\n---\n".join(top_chunks)
+    # Sẽ không chạy vì chúng ta đã vô hiệu hóa ở BƯỚC 8
+    print("HÀM 'find_relevant_knowledge' SẼ KHÔNG ĐƯỢC GỌI.")
+    return None
 
 
-# --- BƯỚC 5: KHỞI TẠO LỊCH SỬ CHAT VÀ "SỔ TAY" PDF --- # <--- ĐÃ NÂNG CẤP
+# --- BƯỚC 5: KHỞI TẠO LỊCH SỬ CHAT VÀ "SỔ TAY" PDF --- # <--- ĐÃ VÔ HIỆU HÓA RAG
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+# --- ĐÃ VÔ HIỆU HÓA RAG THEO YÊU CẦU ---
 # Tải và xử lý PDF khi app khởi động
 if "knowledge_chunks" not in st.session_state:
-    # Hiển thị thông báo chờ...
-    with st.spinner("Đang tải và xử lý tài liệu (PDF)..."):
-        st.session_state.knowledge_chunks = load_and_chunk_pdfs()
-        
-        if not st.session_state.knowledge_chunks:
-            print("Cảnh báo: Không có kiến thức nào được tải từ file PDF.")
-        else:
-            print(f"Đã tải {len(st.session_state.knowledge_chunks)} mẩu kiến thức vào session.")
+    # Chúng ta không gọi hàm load_and_chunk_pdfs() nữa
+    # Thay vào đó, chỉ cần khởi tạo một danh sách rỗng
+    st.session_state.knowledge_chunks = []
+    print("RAG (Đọc PDF) đã bị tắt. Bỏ qua việc tải file.")
+# --- KẾT THÚC VÔ HIỆU HÓA ---
 
 
 # --- BƯỚC 6: HIỂN THỊ LỊCH SỬ CHAT ---
@@ -232,7 +174,7 @@ if not st.session_state.messages:
         )
 
 
-# --- BƯỚC 8: XỬ LÝ INPUT (ĐÃ NÂNG CẤP RAG PDF) --- # <--- ĐÃ CẬP NHẬT
+# --- BƯỚC 8: XỬ LÝ INPUT (ĐÃ VÔ HIỆU HÓA RAG PDF) --- # <--- ĐÃ CẬP NHẬT
 prompt_from_input = st.chat_input("Mời thầy hoặc các em đặt câu hỏi về Tin học...")
 prompt_from_button = st.session_state.pop("prompt_from_button", None)
 prompt = prompt_from_button or prompt_from_input
@@ -244,62 +186,4 @@ if prompt:
         st.markdown(prompt)
 
     # 2. Gửi câu hỏi đến Groq
-    try:
-        with st.chat_message("assistant", avatar="✨"):
-            placeholder = st.empty()
-            bot_response_text = ""
-
-            # --- PHẦN RAG MỚI BẮT ĐẦU TẠI ĐÂY --- #
-            
-            # 2.1. Tìm kiếm trong kho kiến thức PDF
-            retrieved_context = find_relevant_knowledge(prompt, st.session_state.knowledge_chunks)
-            
-            # 2.2. Chuẩn bị list tin nhắn gửi cho AI
-            messages_to_send = [
-                {"role": "system", "content": SYSTEM_INSTRUCTION}
-            ]
-            
-            # 2.3. Nếu "sổ tay" PDF có thông tin, thêm vào làm ngữ cảnh
-            if retrieved_context:
-                context_prompt = (
-                    f"**Thông tin tra cứu (Hãy ưu tiên dùng thông tin này để trả lời):**\n"
-                    f"{retrieved_context}\n\n"
-                    f"**Câu hỏi của học sinh:**\n"
-                    f"{prompt}"
-                )
-                messages_to_send.append({"role": "user", "content": context_prompt})
-            else:
-                # Nếu không tìm thấy, gửi lịch sử chat như bình thường
-                print("Không tìm thấy mẩu kiến thức (chunk) nào liên quan. Trả lời bình thường.")
-                messages_to_send.extend(st.session_state.messages)
-            
-            # --- KẾT THÚC PHẦN RAG --- #
-
-            # 2.4. Gọi API Groq
-            stream = client.chat.completions.create(
-                messages=messages_to_send, 
-                model=MODEL_NAME,
-                stream=True
-            )
-            
-            # 2.5. Lặp qua từng "mẩu" (chunk) API trả về
-            for chunk in stream:
-                if chunk.choices[0].delta.content is not None: 
-                    bot_response_text += chunk.choices[0].delta.content
-                    placeholder.markdown(bot_response_text + "▌")
-                    time.sleep(0.005) # <--- THÊM DÒNG NÀY ĐỂ TẠO HIỆU ỨNG
-            
-            placeholder.markdown(bot_response_text) # Xóa dấu ▌ khi hoàn tất
-
-    except Exception as e:
-        with st.chat_message("assistant", avatar="✨"):
-            st.error(f"Xin lỗi, đã xảy ra lỗi khi kết nối Groq: {e}")
-        bot_response_text = ""
-
-    # 3. Thêm câu trả lời của bot vào lịch sử
-    if bot_response_text:
-        st.session_state.messages.append({"role": "assistant", "content": bot_response_text})
-
-    # 4. Rerun nếu bấm nút
-    if prompt_from_button:
-        st.rerun()
+    try
