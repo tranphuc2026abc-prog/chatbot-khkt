@@ -5,9 +5,7 @@ import streamlit as st
 from groq import Groq
 import os
 
-# --- BƯỚC 1: LẤY API KEY (Đổi sang Groq) ---
-# Lấy key từ https://console.groq.com/keys
-# File này sẽ đọc key từ "Secrets" của Streamlit Cloud
+# --- BƯỚC 1: LẤY API KEY ---
 try:
     api_key = st.secrets["GROQ_API_KEY"]
 except (KeyError, FileNotFoundError):
@@ -46,11 +44,15 @@ SYSTEM_INSTRUCTION = (
     
     "Khi tương tác, hãy luôn giữ giọng văn chuyên nghiệp nhưng thân thiện, "
     "tập trung 100% vào nội dung chương trình 2018 và các ứng dụng thực tế của nó."
+    "Nếu câu hỏi KHÔNG liên quan đến Tin học, lập trình, hoặc Office, hãy trả lời rằng "
+    "chuyên môn chính của bạn là Tin học, nhưng bạn có thể thử trả lời nếu biết."
+    "TRỪ KHI: Nếu bạn được cung cấp 'Thông tin tra cứu' (context), hãy ưu tiên "
+    "dùng thông tin đó để trả lời câu hỏi, ngay cả khi nó không phải Tin học." # <--- MỚI: Chỉ dẫn RAG
 )
-# --- BƯỚC 3: KHỞI TẠO CLIENT VÀ CHỌN MÔ HÌNH (Đổi sang Groq) ---
 
+# --- BƯỚC 3: KHỞI TẠO CLIENT VÀ CHỌN MÔ HÌNH ---
 try:
-    client = Groq(api_key=api_key) # Sử dụng biến api_key đã lấy từ st.secrets
+    client = Groq(api_key=api_key) 
 except Exception as e:
     st.error(f"Lỗi khi cấu hình API Groq: {e}")
     st.stop()
@@ -62,54 +64,37 @@ MODEL_NAME = 'llama-3.1-8b-instant'
 st.set_page_config(page_title="Chatbot Tin học 2018", page_icon="✨", layout="centered")
 st.markdown("""
 <style>
-    /* Ẩn thanh menu của Streamlit */
+    /* ... (Toàn bộ CSS của thầy giữ nguyên) ... */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
-    
-    /* Tùy chỉnh thanh bên */
     [data-testid="stSidebar"] {
-        background-color: #f8f9fa; /* Màu nền sidebar */
-        border-right: 1px solid #e6e6e6;
+        background-color: #f8f9fa; border-right: 1px solid #e6e6e6;
     }
     [data-testid="stSidebar"] [data-testid="stButton"] button {
-        background-color: #FFFFFF;
-        border: 1px solid #e0e0e0;
-        color: #333; /* Màu chữ nút */
-        border-radius: 8px;
+        background-color: #FFFFFF; border: 1px solid #e0e0e0;
+        color: #333; border-radius: 8px;
     }
     [data-testid="stSidebar"] [data-testid="stButton"] button:hover {
-        background-color: #f0f0f0;
-        border: 1px solid #d0d0d0;
-        color: #000;
+        background-color: #f0f0f0; border: 1px solid #d0d0d0; color: #000;
     }
-
-    /* Khu vực chat chính */
     .main .block-container { 
-        max-width: 850px; 
-        padding-top: 2rem;
-        padding-bottom: 5rem; /* Thêm khoảng đệm ở dưới */
+        max-width: 850px; padding-top: 2rem; padding-bottom: 5rem;
     }
     .stButton>button { border: 1px solid #dfe1e5; }
     [data-testid="chatAvatarIcon-user"] { background-color: #C0C0C0; }
-    .welcome-message {
-        font-size: 1.1em;
-        color: #333;
-    }
+    .welcome-message { font-size: 1.1em; color: #333; }
 </style>
 """, unsafe_allow_html=True)
 
 
-# --- BƯỚC 4.5: (PHẦN MỚI) THANH BÊN (SIDEBAR) ---
+# --- BƯỚC 4.5: THANH BÊN (SIDEBAR) ---
 with st.sidebar:
     st.title("🤖 Chatbot KTC")
     st.markdown("---")
     
-    # Nút "Cuộc trò chuyện mới"
     if st.button("➕ Cuộc trò chuyện mới", use_container_width=True):
-        # Xóa lịch sử chat hiện tại
         st.session_state.messages = []
-        # Tải lại trang (để xóa prompt khỏi nút bấm nếu có)
         st.session_state.pop("prompt_from_button", None) 
         st.rerun()
 
@@ -124,79 +109,101 @@ with st.sidebar:
     st.markdown("---")
     st.caption(f"Model: {MODEL_NAME}")
 
-# --- KẾT THÚC PHẦN MỚI ---
+
+# --- BƯỚC 4.6: CÁC HÀM RAG (ĐỌC "SỔ TAY") --- # <--- MỚI
+
+# Hàm đọc file kienthuc.txt và tải vào bộ nhớ
+# @st.cache_data dùng để cache, chỉ đọc file 1 lần cho nhanh
+@st.cache_data
+def load_knowledge_base(file_path="kienthuc.txt"):
+    knowledge = []
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                if line.startswith("Chủ đề:"):
+                    # Tách các từ khóa, xóa khoảng trắng, chuyển về chữ thường
+                    keywords = [k.strip().lower() for k in line.replace("Chủ đề:", "").split(',')]
+                    # Đọc dòng tiếp theo (Nội dung)
+                    content = next(f, "").replace("Nội dung:", "").strip()
+                    if content:
+                        knowledge.append({"keywords": keywords, "content": content})
+    except FileNotFoundError:
+        # Nếu không tìm thấy file, vẫn chạy nhưng báo lỗi nhẹ ở console
+        print(f"Cảnh báo: Không tìm thấy file {file_path}. Chức năng RAG sẽ không hoạt động.")
+    return knowledge
+
+# Hàm tìm kiến thức liên quan (Retrieve)
+def find_relevant_knowledge(query):
+    query_lower = query.lower()
+    # Lấy kiến thức đã tải từ session_state
+    knowledge_base = st.session_state.get("knowledge_base", []) 
+    for item in knowledge_base:
+        for keyword in item["keywords"]:
+            if keyword in query_lower:
+                return item["content"] # Trả về NỘI DUNG nếu tìm thấy
+    return None # Không tìm thấy
 
 
-# --- BƯỚC 5: KHỞI TẠO LỊCH SỬ CHAT ---
+# --- BƯỚC 5: KHỞI TẠO LỊCH SỬ CHAT VÀ "SỔ TAY" ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# --- BƯỚC 6: HIỂN THỊ LỊCH SỬ CHAT (Đã sửa lỗi thụt lề) ---
+# <--- MỚI: Tải "sổ tay" vào session_state khi app khởi động
+if "knowledge_base" not in st.session_state:
+    st.session_state.knowledge_base = load_knowledge_base()
+
+
+# --- BƯỚC 6: HIỂN THỊ LỊCH SỬ CHAT ---
 for message in st.session_state.messages:
     avatar = "✨" if message["role"] == "assistant" else "👤"
     with st.chat_message(message["role"], avatar=avatar):
         st.markdown(message["content"])
 
 # --- BƯỚC 7: MÀN HÌNH CHÀO MỪNG VÀ GỢI Ý ---
-
-# --- PHẦN TIÊU ĐỀ VÀ LOGO (LUÔN HIỂN THỊ) ---
-# Em dời phần này ra ngoài khối 'if' để nó luôn xuất hiện
-
-# ‼️ SỬA LỖI QUAN TRỌNG: Tên file phải khớp 100% với file tải lên GitHub
-# File của thầy tên là "LOGO.jpg" (viết hoa) nên em sửa lại ở đây.
 logo_path = "LOGO.jpg" 
-col1, col2 = st.columns([1, 5])  # Tỷ lệ 1:5 (logo nhỏ, tiêu đề lớn)
+col1, col2 = st.columns([1, 5])
 
 with col1:
     try:
-        st.image(logo_path, width=80)  # Hiển thị logo
+        st.image(logo_path, width=80)
     except Exception as e:
         st.error(f"Lỗi: Không tìm thấy file logo tên là '{logo_path}'. Vui lòng kiểm tra lại tên file trên GitHub.")
         st.stop()
 
-
 with col2:
-    st.title("KCT. Chatbot hỗ trợ môn Tin Học") # Sửa lỗi typo "Chat boot"
+    st.title("KCT. Chatbot hỗ trợ môn Tin Học")
 
-# --- HÀM HỖ TRỢ NÚT BẤM (ĐÃ CHUẨN) ---
 def set_prompt_from_suggestion(text):
     st.session_state.prompt_from_button = text
 
-# --- HIỂN THỊ MÀN HÌNH CHÀO VÀ GỢI Ý (CHỈ KHI MỚI VÀO) ---
 if not st.session_state.messages:
-    
     st.markdown(f"<div class='welcome-message'>Xin chào! Thầy/em cần hỗ trợ gì về môn Tin học (Chương trình 2018)?</div>", unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
-
-    col1_btn, col2_btn = st.columns(2) # Đổi tên biến để không trùng với col1, col2 ở trên
+    col1_btn, col2_btn = st.columns(2)
     with col1_btn:
         st.button(
             "Giải thích về 'biến' trong lập trình?",
-            on_click=set_prompt_from_suggestion,
-            args=("Giải thích về 'biến' trong lập trình?",),
+            on_click=set_prompt_from_suggestion, args=("Giải thích về 'biến' trong lập trình?",),
             use_container_width=True
         )
         st.button(
             "Trình bày về an toàn thông tin?",
-            on_click=set_prompt_from_suggestion,
-            args=("Trình bày về an toàn thông tin?",),
+            on_click=set_prompt_from_suggestion, args=("Trình bày về an toàn thông tin?",),
             use_container_width=True
         )
     with col2_btn:
         st.button(
             "Sự khác nhau giữa RAM và ROM?",
-            on_click=set_prompt_from_suggestion,
-            args=("Sự khác nhau giữa RAM và ROM?",),
+            on_click=set_prompt_from_suggestion, args=("Sự khác nhau giữa RAM và ROM?",),
             use_container_width=True
         )
         st.button(
             "Tóm tắt bài 6 Tin 12 (KNTT)?",
-            on_click=set_prompt_from_suggestion,
-            args=("Tóm tắt bài 6 Tin 12 (KNTT)?",),
+            on_click=set_prompt_from_suggestion, args=("Tóm tắt bài 6 Tin 12 (KNTT)?",),
             use_container_width=True
         )
 
-# --- BƯỚC 8: XỬ LÝ INPUT (Đã sửa lỗi) ---
+# --- BƯỚC 8: XỬ LÝ INPUT (ĐÃ NÂNG CẤP RAG) ---
 prompt_from_input = st.chat_input("Mời thầy hoặc các em đặt câu hỏi về Tin học...")
 prompt_from_button = st.session_state.pop("prompt_from_button", None)
 prompt = prompt_from_button or prompt_from_input
@@ -213,20 +220,41 @@ if prompt:
             placeholder = st.empty()
             bot_response_text = ""
 
-            # 1. Chuẩn bị list tin nhắn
+            # --- PHẦN RAG MỚI BẮT ĐẦU TẠI ĐÂY --- #
+            
+            # 2.1. Tìm kiếm trong "sổ tay"
+            retrieved_context = find_relevant_knowledge(prompt)
+            
+            # 2.2. Chuẩn bị list tin nhắn gửi cho AI
             messages_to_send = [
                 {"role": "system", "content": SYSTEM_INSTRUCTION}
             ]
-            messages_to_send.extend(st.session_state.messages)
+            
+            # 2.3. Nếu "sổ tay" có thông tin, thêm vào làm ngữ cảnh
+            if retrieved_context:
+                context_prompt = (
+                    f"**Thông tin tra cứu (Hãy ưu tiên dùng thông tin này):**\n"
+                    f"{retrieved_context}\n\n"
+                    f"**Câu hỏi của học sinh:**\n"
+                    f"{prompt}"
+                )
+                # Chỉ gửi tin nhắn cuối cùng (có ngữ cảnh) cho AI
+                # thay vì gửi cả lịch sử để AI tập trung vào RAG
+                messages_to_send.append({"role": "user", "content": context_prompt})
+            else:
+                # Nếu không tìm thấy, gửi lịch sử chat như bình thường
+                messages_to_send.extend(st.session_state.messages)
+            
+            # --- KẾT THÚC PHẦN RAG --- #
 
-            # 2. Gọi API Groq với chế độ stream=True
+            # 2.4. Gọi API Groq với chế độ stream=True
             stream = client.chat.completions.create(
-                messages=messages_to_send,
+                messages=messages_to_send, # Gửi tin nhắn đã xử lý RAG
                 model=MODEL_NAME,
                 stream=True
             )
             
-            # 3. Lặp qua từng "mẩu" (chunk) API trả về
+            # 2.5. Lặp qua từng "mẩu" (chunk) API trả về
             for chunk in stream:
                 if chunk.choices[0].delta.content is not None: 
                     bot_response_text += chunk.choices[0].delta.content
@@ -243,6 +271,6 @@ if prompt:
     if bot_response_text:
         st.session_state.messages.append({"role": "assistant", "content": bot_response_text})
 
-    # 4. Rerun nếu bấm nút (Đã sửa lỗi cú pháp)
+    # 4. Rerun nếu bấm nút
     if prompt_from_button:
         st.rerun()
