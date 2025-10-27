@@ -4,7 +4,6 @@ import streamlit as st
 from groq import Groq
 import os
 import glob
-from pypdf import PdfReader
 import time # <--- THÊM DÒNG NÀY
 # --- BƯỚC 1: LẤY API KEY ---
 try:
