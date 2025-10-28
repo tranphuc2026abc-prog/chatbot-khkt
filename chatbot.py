@@ -196,7 +196,7 @@ with col1:
         st.error(f"Lỗi: Không tìm thấy file logo tên là '{logo_path}'. Vui lòng kiểm tra lại tên file trên GitHub.")
         st.stop()
 with col2:
-    st.title("KCT. Chatbot hỗ trợ môn Tin Học")
+    st.title("KTC. Chatbot hỗ trợ môn Tin Học")
 
 def set_prompt_from_suggestion(text):
     st.session_state.prompt_from_button = text
