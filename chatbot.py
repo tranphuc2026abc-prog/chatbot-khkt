@@ -110,8 +110,7 @@ except Exception as e:
     st.stop()
 
 # MODEL_NAME = 'llama-3.1-8b-instant'
-MODEL_NAME = 'llama-3.1-70b-versatile'
-
+MODEL_NAME = 'mixtral-8x7b-32768'
 # --- BƯỚC 4: CẤU HÌNH TRANG VÀ CSS ---
 st.set_page_config(page_title="Chatbot Tin học 2018", page_icon="✨", layout="centered")
 st.markdown("""
