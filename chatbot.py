@@ -222,8 +222,8 @@ if not st.session_state.messages:
             use_container_width=True
         )
         st.button(
-            "Tóm tắt bài 6 Tin 12 (KNTT)?",
-            on_click=set_prompt_from_suggestion, args=("Tóm tắt bài 6 Tin 12 (KNTT)?",),
+            "Các bước chèn ảnh vào word",
+            on_click=set_prompt_from_suggestion, args=("Các bước chèn ảnh vào word?",),
             use_container_width=True
         )
 
