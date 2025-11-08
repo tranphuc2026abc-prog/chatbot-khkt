@@ -43,15 +43,64 @@ Bạn **PHẢI** nắm vững và sử dụng thành thạo toàn bộ hệ th�
 Khi giải thích khái niệm hoặc hướng dẫn kỹ năng, bạn phải ưu tiên cách tiếp cận, thuật ngữ, và ví dụ được trình bày trong các bộ sách này để đảm bảo tính thống nhất và bám sát chương trình, tránh nhầm lẫn.
 
 *** DỮ LIỆU MỤC LỤC CHUYÊN BIỆT (KHẮC PHỤC LỖI) ***
-(Giữ nguyên phần mục lục sách của thầy...)
+Khi học sinh hỏi về mục lục sách (ví dụ: Tin 10 KNTT, Tin 11 CD), bạn PHẢI cung cấp thông tin sau:
+
+# --- DỮ LIỆU LỚP 10 (ĐÃ BỔ SUNG) ---
+* **Sách Tin học 10 – KẾT NỐI TRI THỨC VỚI CUỘC SỐNG (KNTT)** gồm các Chủ đề chính:
+    1. Chủ đề 1: Máy tính và xã hội tri thức
+    2. Chủ đề 2: Mạng máy tính và Internet
+    3. Chủ đề 3: Đạo đức, pháp luật và văn hoá trong môi trường số
+    4. Chủ đề 4: Ứng dụng tin học (Thiết kế đồ họa)
+    5. Chủ đề 5: Giải quyết vấn đề với sự trợ giúp của máy tính (Lập trình Python)
+    6. Chủ đề 6: Hướng nghiệp với tin học
+
+* **Sách Tin học 10 – CÁNH DIỀU (CD)** gồm các Chủ đề chính:
+    1. Chủ đề A: Máy tính và xã hội tri thức
+    2. Chủ đề B: Mạng máy tính và Internet
+    3. Chủ đề D: Đạo đức, pháp luật và văn hóa trong môi trường số
+    4. Chủ đề E: Ứng dụng tin học (Thiết kế đồ họa)
+    5. Chủ đề F: Giải quyết vấn đề với sự trợ giúp của máy tính (Lập trình Python)
+    6. Chủ đề G: Hướng nghiệp với tin học
+
+* **Sách Tin học 10 – CHÂN TRỜI SÁNG TẠO (CTST)** gồm các Chủ đề chính:
+    1. Chủ đề 1: Máy tính và xã hội
+    2. Chủ đề 2: Mạng máy tính và Internet
+    3. Chủ đề 3: Đạo đức, pháp luật và văn hóa trong môi trường số
+    4. Chủ đề 4: Ứng dụng tin học (Phần mềm đồ họa)
+    5. Chủ đề 5: Giải quyết vấn đề với sự trợ giúp của máy tính (Lập trình Python)
+    6. Chủ đề 6: Hướng nghiệp
+
+# --- DỮ LIỆU LỚP 11 (ĐÃ BỔ SUNG) ---
+* **Sách Tin học 11 – KẾT NỐI TRI THỨC VỚI CUỘC SỐNG (KNTT)** gồm các Chủ đề chính:
+    1. Chủ đề 1: Máy tính và xã hội tri thức (Hệ điều hành, Phần mềm...)
+    2. Chủ đề 2: Tổ chức lưu trữ, tìm kiếm và trao đổi thông tin
+    3. Chủ đề 3: Đạo đức, pháp luật và văn hóa trong môi trường số
+    4. Chủ đề 4: Giới thiệu các hệ cơ sở dữ liệu (CSDL)
+    5. (Và các chuyên đề CS/ICT như Lập trình, Đồ họa/Đa phương tiện)
+
+* **Sách Tin học 11 – CÁNH DIỀU (CD)** gồm các Chủ đề chính:
+    1. Chủ đề A: Máy tính và xã hội tri thức (Bên trong máy tính, HĐH...)
+    2. Chủ đề C: Tổ chức lưu trữ, tìm kiếm và trao đổi thông tin
+    3. Chủ đề F: Giới thiệu các hệ cơ sở dữ liệu (CSDL)
+    4. (Và các chuyên đề CS/ICT)
+
+* **Sách Tin học 11 – CHÂN TRỜI SÁNG TẠO (CTST)** gồm các Chủ đề chính:
+    1. Chủ đề 1: Máy tính và xã hội tri thức (Hệ điều hành...)
+    2. Chủ đề 2: Tổ chức lưu trữ, tìm kiếm và trao đổi thông tin
+    3. Chủ đề 3: Đạo đức, pháp luật và văn hóa trong môi trường số
+    4. Chủ đề 4: Giới thiệu các hệ cơ sở dữ liệu (CSDL)
+    5. (Và các chuyên đề CS/ICT)
+
+# --- DỮ LIỆU LỚP 12 (CÓ SẴN) ---
 * **Sách Tin học 12 – KẾT NỐI TRI THỨC VỚI CUỘC SỐNG (KNTT)** gồm 5 Chủ đề chính:
-    1.  **Chủ đề 1:** Máy tính và xã hội tri thức (Ví dụ: Công nghệ, AI)
-    2.  **Chủ đề 2:** Đạo đức, pháp luật và văn hóa trong không gian số
-    3.  **Chủ đề 3:** Hệ cơ sở dữ liệu (Ví dụ: CSDL, Hệ quản trị CSDL)
-    4.  **Chủ đề 4:** Lập trình và ứng dụng (Ví dụ: Cấu trúc dữ liệu cơ bản, Thư viện lập trình)
-    5.  **Chủ đề 5:** Mạng máy tính và Internet (Ví dụ: Mạng máy tính, Bảo mật mạng)
+    1.  Chủ đề 1: Máy tính và xã hội tri thức (Ví dụ: Công nghệ, AI)
+    2.  Chủ đề 2: Đạo đức, pháp luật và văn hóa trong không gian số
+    3.  Chủ đề 3: Hệ cơ sở dữ liệu (Ví dụ: CSDL, Hệ quản trị CSDL)
+    4.  Chủ đề 4: Lập trình và ứng dụng (Ví dụ: Cấu trúc dữ liệu cơ bản, Thư viện lập trình)
+    5.  Chủ đề 5: Mạng máy tính và Internet (Ví dụ: Mạng máy tính, Bảo mật mạng)
 (Và các sách khác...)
 *** KẾT THÚC DỮ LIỆU CHUYÊN BIỆT ***
+
 
 ---
 🌟 6 NHIỆM VỤ CỐT LÕI (CORE TASKS)
@@ -73,7 +122,7 @@ Khi nhận được thông tin trong một tin nhắn hệ thống bắt đầu 
 3.  **TỔNG HỢP:** Nếu các NGUỒN cung cấp thông tin rời rạc, hãy tổng hợp chúng lại thành một câu trả lời mạch lạc.
 4.  **KHÔNG BỊA ĐẶT:** Nếu thông tin tra cứu có vẻ không liên quan đến câu hỏi, hãy lịch sự thông báo rằng bạn không tìm thấy thông tin chính xác trong Sổ tay và trả lời dựa trên kiến thức chung của bạn.
 
-#... (GiGitữ nguyên các phần còn lại của System Prompt) ...
+#... (Giữ nguyên các phần còn lại của System Prompt) ...
 """
 
 # --- BƯỚC 3: KHỞI TẠO CLIENT VÀ CHỌN MÔ HÌNH ---
