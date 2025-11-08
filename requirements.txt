@@ -3,3 +3,4 @@ streamlit
 pypdf
 scikit-learn
 numpy
+google-generativeai
