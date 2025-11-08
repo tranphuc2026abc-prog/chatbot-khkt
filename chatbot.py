@@ -1,20 +1,13 @@
 # Chạy bằng lệnh: streamlit run chatbot.py
-# ‼️ Yêu cầu cài đặt: pip install google-generativeai streamlit pypdf scikit-learn
-# (Lưu ý: Pypdf và Scikit-learn là BẮT BUỘC để RAG hoạt động)
+# ‼️ Yêu cầu cài đặt: pip install google-generativeai streamlit
 
 import streamlit as st
 import google.generativeai as genai
 from google.generativeai.types import HarmCategory, HarmBlockThreshold
 import os
-import glob
 import time
 
-# --- THƯ VIỆN BẮT BUỘC CHO RAG ---
-from pypdf import PdfReader
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-import numpy as np
-# --- KẾT THÚC THƯ VIỆN RAG ---
+# --- [ĐÃ XÓA] Toàn bộ thư viện RAG (pypdf, sklearn, numpy) ---
 
 
 # --- BƯỚC 1: LẤY API KEY ---
@@ -48,18 +41,11 @@ Bạn **PHẢI** nắm vững và sử dụng thành thạo toàn bộ hệ th�
 ---
 [PHẦN QUAN TRỌNG] XỬ LÝ THÔNG TIN TRA CỨU (RAG)
 ---
-Khi nhận được thông tin trong một tin nhắn hệ thống bắt đầu bằng "--- BẮT ĐẦU DỮ LIỆU TRA CỨU TỪ 'SỔ TAY' (RAG) ---", bạn **PHẢI** tuân thủ các quy tắc sau:
-
-1.  **ƯU TIÊN TUYỆT ĐỐI:** Dữ liệu này là nguồn "chân lý" (ground truth) từ Sổ tay Tin học. Bạn **PHẢI** ưu tiên sử dụng thông tin này để trả lời câu hỏi của người dùng.
-2.  **TRÍCH DẪN (NẾU CÓ THỂ):** Nếu câu trả lời của bạn dựa trực tiếp vào "NGUỒN" được cung cấp, hãy cố gắng trích dẫn ngắn gọn (ví dụ: "Theo tài liệu,..." hoặc "Như trong Sổ tay có đề cập...").
-3.  **TỔNG HỢP:** Nếu các NGUỒN cung cấp thông tin rời rạc, hãy tổng hợp chúng lại thành một câu trả lời mạch lạc.
-4.  **KHÔNG BỊA ĐẶT:** Nếu thông tin tra cứu có vẻ không liên quan đến câu hỏi, hãy lịch sự thông báo rằng bạn không tìm thấy thông tin chính xác trong Sổ tay và trả lời dựa trên kiến thức chung của bạn.
+(RAG HIỆN ĐANG TẮT)
 """
 
 # --- BƯỚC 3: KHỞI TẠO CLIENT VÀ CHỌN MÔ HÌNH ---
-
-# [SỬA LỖI] Dùng 'gemini-pro' (cơ bản) để đảm bảo API Key có quyền
-MODEL_NAME = 'gemini-pro' 
+MODEL_NAME = 'gemini-pro' # Dùng model cơ bản nhất để test
 try:
     safety_settings = {
         HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
@@ -73,14 +59,13 @@ try:
         system_instruction=SYSTEM_INSTRUCTION,
         safety_settings=safety_settings
     )
-    print("Khởi tạo model Gemini thành công.") # DEBUG
+    print("--- KHỞI TẠO MODEL GEMINI THÀNH CÔNG ---") # DEBUG
 except Exception as e:
     st.error(f"Lỗi khi khởi tạo Model Gemini: {e}")
     st.stop()
 
 
 # --- BƯỚC 4: CẤU HÌNH TRANG VÀ CSS ---
-# (Giữ nguyên không thay đổi)
 st.set_page_config(page_title="Chatbot Tin học 2018", page_icon="✨", layout="centered")
 st.markdown("""
 <style>
@@ -118,102 +103,21 @@ with st.sidebar:
     st.caption(f"Model: {MODEL_NAME}")
 
 
-# --- BƯỚC 4.6: CÁC HÀM RAG ---
-# (Để các hàm này ở đây, chúng ta chỉ không gọi hàm load_and_process_pdfs)
-
-@st.cache_data(ttl=3600) 
-def load_and_process_pdfs(pdf_folder="data_pdf"):
-    print(f"--- BẮT ĐẦU HÀM load_and_process_pdfs ---") # DEBUG
-    print(f"Bắt đầu quét thư mục: {pdf_folder}")
-    pdf_files = glob.glob(os.path.join(pdf_folder, "*.pdf"))
-    
-    if not pdf_files:
-        print("CẢNH BÁO: Không tìm thấy file PDF nào.")
-        return None 
-
-    chunks = []
-    for pdf_path in pdf_files:
-        print(f"Đang xử lý file: {pdf_path}")
-        try:
-            reader = PdfReader(pdf_path)
-            for page_num, page in enumerate(reader.pages):
-                text = page.extract_text()
-                if text:
-                    source_info = f"[Nguồn: {os.path.basename(pdf_path)}, Trang {page_num + 1}]"
-                    chunks.append(f"{source_info}\n\n{text}")
-        except Exception as e:
-            st.error(f"Lỗi khi đọc file {pdf_path}: {e}. Vui lòng kiểm tra file này trên GitHub.")
-            print(f"Lỗi khi đọc file {pdf_path}: {e}") # DEBUG
-            continue 
-
-    if not chunks:
-        print("Không thể trích xuất nội dung từ các file PDF.")
-        return None 
-
-    print(f"Đã trích xuất {len(chunks)} trang PDF. Bắt đầu vector hóa...")
-    
-    try:
-        vectorizer = TfidfVectorizer(stop_words=None, ngram_range=(1, 2))
-        tfidf_matrix = vectorizer.fit_transform(chunks)
-        print("Vector hóa hoàn tất.")
-        return (chunks, tfidf_matrix, vectorizer)
-    
-    except ValueError as e:
-        if "empty vocabulary" in str(e):
-            st.error(f"Lỗi RAG: Các file PDF có thể không chứa văn bản (chỉ chứa ảnh).")
-        else:
-            st.error(f"Lỗi Vectorizer: {e}")
-        return None 
-    
-
-def find_relevant_knowledge(query, knowledge_data, num_chunks=3):
-    chunks, tfidf_matrix, vectorizer = knowledge_data
-    
-    if not chunks or tfidf_matrix is None or vectorizer is None:
-        return [] 
-
-    query_vector = vectorizer.transform([query])
-    cosine_similarities = cosine_similarity(query_vector, tfidf_matrix).flatten()
-    relevant_indices = np.where(cosine_similarities > 0.1)[0]
-    sorted_indices = sorted(relevant_indices, key=lambda i: cosine_similarities[i], reverse=True)
-    top_indices = sorted_indices[:num_chunks]
-
-    if not top_indices:
-        return [] 
-        
-    relevant_chunks = [chunks[i] for i in top_indices]
-    return relevant_chunks
+# --- BƯỚC 4.6: CÁC HÀM RAG (ĐÃ XÓA) ---
 
 def convert_history_for_gemini(messages):
+    """
+    Chuyển đổi lịch sử chat của Streamlit (role/content) 
+    sang định dạng của Gemini (role/parts).
+    """
     gemini_history = []
     for msg in messages:
         role = 'model' if msg['role'] == 'assistant' else 'user'
         gemini_history.append({'role': role, 'parts': [msg['content']]})
     return gemini_history
 
-# --- [SỬA LỖI THEO YÊU CẦU] BƯỚC 5: TẠM KHÓA RAG ---
-# Chúng ta sẽ không gọi hàm load_and_process_pdfs() nữa
-
-if "knowledge_data" not in st.session_state:
-    print("--- BƯỚC 5: RAG ĐANG BỊ TẮT (TẠM THỜI) ---") # DEBUG
-    # Gán dữ liệu rỗng để app không bị crash ở BƯỚC 8
-    st.session_state.knowledge_data = ([], None, None) 
-    
-    # Dòng code cũ (bị tạm khóa):
-    # try:
-    #     print("--- BƯỚC 5: BẮT ĐẦU TẢI RAG ---") # DEBUG
-    #     with st.spinner("👩‍🏫 Em đang đọc 'Sổ tay Tin học' (PDF)..."):
-    #         knowledge_result = load_and_process_pdfs()
-    #         if knowledge_result is None:
-    #             st.error("Lỗi: Không thể tải hoặc xử lý các file PDF. RAG sẽ bị tắt.")
-    #             st.session_state.knowledge_data = ([], None, None) 
-    #         else:
-    #             st.session_state.knowledge_data = knowledge_result
-    #             print("--- BƯỚC 5: TẢI RAG THÀNH CÔNG ---") # DEBUG
-    # except Exception as e:
-    #     print(f"--- LỖI NGHIÊM TRỌNG Ở BƯỚC 5 ---: {e}") # DEBUG
-    #     st.error(f"Lỗi nghiêm trọng khi tải RAG: {e}")
-    #     st.session_state.knowledge_data = ([], None, None) # Gán rỗng
+# --- BƯỚC 5: KHỞI TẠO RAG (ĐÃ TẮT) ---
+print("--- BƯỚC 5: RAG ĐÃ BỊ TẮT ---") # DEBUG
 
 # --- BƯỚC 6: HIỂN THỊ LỊCH SỬ CHAT ---
 if "messages" not in st.session_state:
@@ -235,11 +139,9 @@ with col1:
 with col2:
     st.title("KTC. Chatbot hỗ trợ môn Tin Học")
 
-# --- [SỬA LỖI NAMEERROR] ---
-# Thêm lại hàm bị thiếu mà tôi đã vô tình xóa mất
+# Thêm lại hàm bị thiếu
 def set_prompt_from_suggestion(text):
     st.session_state.prompt_from_button = text
-# --- KẾT THÚC SỬA LỖI NAMEERROR ---
 
 if not st.session_state.messages:
     st.markdown(f"<div class='welcome-message'>Xin chào! Thầy/em cần hỗ trợ gì về môn Tin học (Chương trình 2018)?</div>", unsafe_allow_html=True)
@@ -249,7 +151,7 @@ if not st.session_state.messages:
     with col1_btn:
         st.button(
             "Giải thích về 'biến' trong lập trình?",
-            on_click=set_prompt_from_suggestion, # Hàm này giờ đã tồn tại
+            on_click=set_prompt_from_suggestion, 
             args=("Giải thích về 'biến' trong lập trình?",), 
             use_container_width=True
         )
@@ -274,7 +176,7 @@ if not st.session_state.messages:
         )
 
 
-# --- BƯỚC 8: XỬ LÝ INPUT (ĐÃ SỬA LỖI TREO) --- 
+# --- BƯỚC 8: XỬ LÝ INPUT (KHÔNG CÓ RAG) --- 
 
 prompt_from_input = st.chat_input("Mời thầy hoặc các em đặt câu hỏi về Tin học...")
 prompt_from_button = st.session_state.pop("prompt_from_button", None)
@@ -290,39 +192,10 @@ if prompt:
             placeholder = st.empty()
             
             with placeholder.status("👩‍🏫 Chatbook đang suy nghĩ..."):
-                print("--- BƯỚC 8: BẮT ĐẦU XỬ LÝ PROMPT ---") # DEBUG
+                print("--- BƯỚC 8: BẮT ĐẦU XỬ LÝ PROMPT (KHÔNG RAG) ---") # DEBUG
                 
-                # --- PHẦN RAG (ĐANG BỊ TẮT) ---
-                # st.session_state.knowledge_data giờ là ([], None, None)
-                if st.session_state.knowledge_data and st.session_state.knowledge_data[0]:
-                    print("Đang tìm kiến thức liên quan...") # DEBUG
-                    retrieved_context = find_relevant_knowledge(prompt, st.session_state.knowledge_data, num_chunks=3)
-                else:
-                    retrieved_context = [] # Sẽ luôn rỗng vì RAG bị tắt
-                
-                print("Đang chuyển đổi lịch sử chat...") # DEBUG
                 messages_for_api = convert_history_for_gemini(st.session_state.messages)
                 
-                if retrieved_context:
-                    # Sẽ không bao giờ chạy vào đây vì RAG đã tắt
-                    print(f"Đã tìm thấy {len(retrieved_context)} mẩu kiến thức RAG.") # DEBUG
-                    context_message = (
-                        "--- BẮT ĐẦU DỮ LIỆU TRA CỨU TỪ 'SỔ TAY' (RAG) ---\n"
-                        "Đây là thông tin bổ sung từ 'Sổ tay Tin học' của bạn. "
-                        "Hãy sử dụng thông tin này làm NGUỒN ƯU TIÊN để trả lời câu hỏi của người dùng.\n\n"
-                    )
-                    for i, chunk_text in enumerate(retrieved_context):
-                        context_message += f"--- NGUỒN {i+1} ---\n{chunk_text}\n\n"
-                    context_message += "--- KẾT THÚC DỮ LIỆU TRA CỨU ---\n"
-                    
-                    last_user_message = messages_for_api.pop()
-                    new_prompt_content = f"{context_message}\n\nCâu hỏi: {last_user_message['parts'][0]}"
-                    messages_for_api.append({'role': 'user', 'parts': [new_prompt_content]})
-                    
-                else:
-                    print("Không tìm thấy kiến thức RAG liên quan (do RAG đã tắt).") # DEBUG
-
-                # --- [SỬA LỖI TREO] ---
                 print("ĐANG GỌI API GEMINI...") # DEBUG
                 response = gemini_model.generate_content(
                     messages_for_api # Gửi toàn bộ
@@ -336,8 +209,6 @@ if prompt:
                         bot_response_text = "Xin lỗi, tôi không thể tạo câu trả lời cho câu hỏi này."
                 else:
                     bot_response_text = response.text
-                
-                # --- [KẾT THÚC SỬA LỖI] ---
 
             placeholder.markdown(bot_response_text)
 
