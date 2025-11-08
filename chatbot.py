@@ -81,7 +81,7 @@ Khi nhận được thông tin trong một tin nhắn hệ thống bắt đầu 
 # --- BƯỚC 3: KHỞI TẠO CLIENT VÀ CHỌN MÔ HÌNH ---
 
 # [THAY ĐỔI] 4. Khởi tạo mô hình Gemini với System Instruction
-MODEL_NAME = 'gemini-2.5-pro' 
+MODEL_NAME = 'gemini-1.5-pro-latest' 
 try:
     # [SỬA LỖI] Cập nhật safety_settings dùng Enum
     safety_settings = {
