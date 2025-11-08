@@ -45,7 +45,8 @@ Bạn **PHẢI** nắm vững và sử dụng thành thạo toàn bộ hệ th�
 """
 
 # --- BƯỚC 3: KHỞI TẠO CLIENT VÀ CHỌN MÔ HÌNH ---
-MODEL_NAME = 'gemini-pro' # Dùng model cơ bản nhất để test
+# [SỬA LỖI 404] Dùng model 'flash' miễn phí, tốc độ cao
+MODEL_NAME = 'gemini-1.5-flash-latest' 
 try:
     safety_settings = {
         HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
