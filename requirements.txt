@@ -1,4 +1,5 @@
-streamlit
-google-generativeai
 groq
+streamlit
 pypdf
+scikit-learn
+numpy
