@@ -75,13 +75,12 @@ Khi nhận được thông tin trong một tin nhắn hệ thống bắt đầu 
 3.  **TỔNG HỢP:** Nếu các NGUỒN cung cấp thông tin rời rạc, hãy tổng hợp chúng lại thành một câu trả lời mạch lạc.
 4.  **KHÔNG BỊA ĐẶT:** Nếu thông tin tra cứu có vẻ không liên quan đến câu hỏi, hãy lịch sự thông báo rằng bạn không tìm thấy thông tin chính xác trong Sổ tay và trả lời dựa trên kiến thức chung của bạn.
 
-#... (Giữ nguyên các phần còn lại của System Prompt) ...
+#... (GiVới nguyên các phần còn lại của System Prompt) ...
 """
 
 # --- BƯỚC 3: KHỞI TẠO CLIENT VÀ CHỌN MÔ HÌNH ---
 
-# [THAY ĐỔI] 4. Khởi tạo mô hình Gemini với System Instruction
-# [SỬA LỖI] Đổi về 1.5-pro-latest cho ổn định (thầy có thể đổi lại 2.5-pro nếu muốn)
+# Model ổn định
 MODEL_NAME = 'gemini-1.5-pro-latest' 
 try:
     # [SỬA LỖI] Cập nhật safety_settings dùng Enum
@@ -141,7 +140,6 @@ with st.sidebar:
         "*(Cao Sỹ Bảo Chung)*"
     )
     st.markdown("---")
-    # [THAY ĐỔI] 5. Cập nhật tên Model mới
     st.caption(f"Model: {MODEL_NAME}")
 
 
@@ -150,10 +148,6 @@ with st.sidebar:
 
 @st.cache_data(ttl=3600) 
 def load_and_process_pdfs(pdf_folder="data_pdf"):
-    """
-    Tải tất cả file PDF từ một thư mục, trích xuất văn bản theo từng trang,
-    và tạo ra ma trận TF-IDF cũng như vectorizer.
-    """
     print(f"Bắt đầu quét thư mục: {pdf_folder}")
     pdf_files = glob.glob(os.path.join(pdf_folder, "*.pdf"))
     
@@ -199,9 +193,6 @@ def load_and_process_pdfs(pdf_folder="data_pdf"):
 
 
 def find_relevant_knowledge(query, chunks, tfidf_matrix, vectorizer, num_chunks=3):
-    """
-    Tìm các chunks (trang) liên quan nhất đến câu hỏi bằng TF-IDF và Cosine Similarity.
-    """
     if not chunks or tfidf_matrix is None or vectorizer is None:
         return [] 
 
@@ -219,12 +210,7 @@ def find_relevant_knowledge(query, chunks, tfidf_matrix, vectorizer, num_chunks=
     relevant_chunks = [chunks[i] for i in top_indices]
     return relevant_chunks
 
-# --- [THAY ĐỔI] 6. HÀM CHUYỂN ĐỔI LỊCH SỬ SANG FORMAT GEMINI ---
 def convert_history_for_gemini(messages):
-    """
-    Chuyển đổi lịch sử chat của Streamlit (role/content) 
-    sang định dạng của Gemini (role/parts).
-    """
     gemini_history = []
     for msg in messages:
         role = 'model' if msg['role'] == 'assistant' else 'user'
@@ -266,7 +252,7 @@ def set_prompt_from_suggestion(text):
     st.session_state.prompt_from_button = text
 
 if not st.session_state.messages:
-    st.markdown(f"<div class='welcome-message'>Xin chào! Thầy/em cần hỗ trợ gì về môn Tin học (Chương trình 2018)?</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class'welcome-message'>Xin chào! Thầy/em cần hỗ trợ gì về môn Tin học (Chương trình 2018)?</div>", unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
     
     col1_btn, col2_btn = st.columns(2)
@@ -295,7 +281,7 @@ if not st.session_state.messages:
 
 
 # --- BƯỚC 8: XỬ LÝ INPUT (ĐÃ KÍCH HOẠT RAG PDF) --- # 
-# [THAY ĐỔI] 7. Đây là phần thay đổi LỚN NHẤT (toàn bộ logic gọi API)
+# [THAY ĐỔI HOÀN TOÀN BƯỚC 8 ĐỂ SỬA LỖI "TREO"]
 
 prompt_from_input = st.chat_input("Mời thầy hoặc các em đặt câu hỏi về Tin học...")
 prompt_from_button = st.session_state.pop("prompt_from_button", None)
@@ -311,23 +297,26 @@ if prompt:
     try:
         with st.chat_message("assistant", avatar="✨"):
             placeholder = st.empty()
-            # [SỬA LỖI] Đặt spinner chờ ở đây
+            
+            # Đặt spinner chờ ở đây
             with placeholder.status("👩‍🏫 Chatbook đang suy nghĩ..."):
-
+                print("--- BẮT ĐẦU XỬ LÝ PROMPT ---") # DEBUG
+                
                 # --- PHẦN RAG ĐÃ KÍCH HOẠT --- #
                 
-                # 2.1. Lấy dữ liệu RAG đã cache
+                print("Đang tải dữ liệu RAG...") # DEBUG
                 chunks, tfidf_matrix, vectorizer = st.session_state.knowledge_data
                 
-                # 2.2. Tìm kiếm kiến thức liên quan
+                print("Đang tìm kiến thức liên quan...") # DEBUG
                 retrieved_context = find_relevant_knowledge(prompt, chunks, tfidf_matrix, vectorizer, num_chunks=3)
                 
-                # 2.3. Chuẩn bị lịch sử chat cho Gemini
+                print("Đang chuyển đổi lịch sử chat...") # DEBUG
+                # Lấy *toàn bộ* lịch sử, bao gồm cả câu hỏi mới nhất
                 messages_for_api = convert_history_for_gemini(st.session_state.messages)
                 
                 # 2.4. (QUAN TRỌNG) Chèn Context RAG vào tin nhắn
                 if retrieved_context:
-                    print(f"Đã tìm thấy {len(retrieved_context)} mẩu kiến thức RAG cho câu hỏi.")
+                    print(f"Đã tìm thấy {len(retrieved_context)} mẩu kiến thức RAG.") # DEBUG
                     context_message = (
                         "--- BẮT ĐẦU DỮ LIỆU TRA CỨU TỪ 'SỔ TAY' (RAG) ---\n"
                         "Đây là thông tin bổ sung từ 'Sổ tay Tin học' của bạn. "
@@ -337,39 +326,41 @@ if prompt:
                         context_message += f"--- NGUỒN {i+1} ---\n{chunk_text}\n\n"
                     context_message += "--- KẾT THÚC DỮ LIỆU TRA CỨU ---\n"
                     
+                    # Lấy ra tin nhắn cuối cùng (là câu hỏi của user)
                     last_user_message = messages_for_api.pop()
+                    # Tạo nội dung prompt mới, kết hợp RAG và câu hỏi gốc
                     new_prompt_content = f"{context_message}\n\nCâu hỏi: {last_user_message['parts'][0]}"
+                    # Đưa tin nhắn đã "bổ sung" RAG trở lại vào lịch sử
                     messages_for_api.append({'role': 'user', 'parts': [new_prompt_content]})
                     
                 else:
-                    print("Không tìm thấy kiến thức RAG liên quan. Trả lời bình thường.")
+                    print("Không tìm thấy kiến thức RAG liên quan.") # DEBUG
 
                 # --- KẾT THÚC PHẦN RAG --- #
 
-                # --- [BẮT ĐẦU SỬA LỖI "too_many_pings"] ---
+                # --- [SỬA LỖI "TREO"] ---
+                # Chúng ta không dùng "chat_session" nữa.
+                # Chúng ta gọi "generate_content" và gửi TOÀN BỘ tin nhắn (lịch sử + RAG + câu hỏi mới)
                 
-                # 2.5. Khởi tạo phiên chat
-                chat_session = gemini_model.start_chat(
-                    history=messages_for_api[:-1] # Toàn bộ lịch sử TRỪ câu hỏi cuối
+                print("ĐANG GỌI API GEMINI...") # DEBUG
+                response = gemini_model.generate_content(
+                    messages_for_api # Gửi toàn bộ
                 )
+                print("ĐÃ NHẬN PHẢN HỒI TỪ GEMINI.") # DEBUG
                 
-                # 2.6. Gửi câu hỏi và CHỜ phản hồi (NON-STREAMING)
-                # Bỏ stream=True để tránh lỗi "ENHANCE_YOUR_CALM"
-                response = chat_session.send_message(
-                    messages_for_api[-1]['parts'] # Chỉ gửi nội dung câu hỏi cuối
-                )
-                
-                # 2.7. Lấy nội dung text và hiển thị
+                # Lấy nội dung text và hiển thị
                 bot_response_text = response.text
                 
-                # --- [KẾT THÚC SỬA LỖI] ---
+                # --- [KẾT THÚC SỬA LỖI "TREO"] ---
 
             # Hiển thị câu trả lời (sau khi spinner đã xong)
             placeholder.markdown(bot_response_text)
 
     except Exception as e:
+        # Nếu có lỗi, nó sẽ bị bắt ở đây và hiển thị ra
         with st.chat_message("assistant", avatar="✨"):
             st.error(f"Xin lỗi, đã xảy ra lỗi khi kết nối Gemini: {e}")
+            print(f"--- LỖI XẢY RA ---: {e}") # DEBUG
         bot_response_text = ""
 
     # 3. Thêm câu trả lời của bot vào lịch sử
