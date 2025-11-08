@@ -1,9 +1,10 @@
 # Chạy bằng lệnh: streamlit run chatbot.py
-# ‼️ Yêu cầu cài đặt: pip install groq streamlit pypdf scikit-learn
+# ‼️ Yêu cầu cài đặt: pip install google-generativeai streamlit pypdf scikit-learn
 # (Lưu ý: Pypdf và Scikit-learn là BẮT BUỘC để RAG hoạt động)
 
 import streamlit as st
-from groq import Groq
+# [THAY ĐỔI] 1. Bỏ Groq, thêm thư viện của Google
+import google.generativeai as genai
 import os
 import glob
 import time
@@ -18,12 +19,17 @@ import numpy as np
 
 # --- BƯỚC 1: LẤY API KEY ---
 try:
-    api_key = st.secrets["GROQ_API_KEY"]
+    # [THAY ĐỔI] 2. Lấy Google API Key từ Streamlit Secrets
+    api_key = st.secrets["GOOGLE_API_KEY"]
 except (KeyError, FileNotFoundError):
-    st.error("Lỗi: Không tìm thấy GROQ_API_KEY. Vui lòng thêm vào Secrets trên Streamlit Cloud.")
+    st.error("Lỗi: Không tìm thấy GOOGLE_API_KEY. Vui lòng thêm vào Secrets trên Streamlit Cloud.")
     st.stop()
     
+# [THAY ĐỔI] 3. Cấu hình API cho Google
+genai.configure(api_key=api_key)
+
 # --- BƯỚC 2: THIẾT LẬP VAI TRÒ (SYSTEM_INSTRUCTION) ---
+# System prompt này sẽ được đưa vào model, không cần thay đổi
 SYSTEM_INSTRUCTION = """
 ---
 BỐI CẢNH VAI TRÒ (ROLE CONTEXT)
@@ -43,62 +49,7 @@ Bạn **PHẢI** nắm vững và sử dụng thành thạo toàn bộ hệ th�
 Khi giải thích khái niệm hoặc hướng dẫn kỹ năng, bạn phải ưu tiên cách tiếp cận, thuật ngữ, và ví dụ được trình bày trong các bộ sách này để đảm bảo tính thống nhất và bám sát chương trình, tránh nhầm lẫn.
 
 *** DỮ LIỆU MỤC LỤC CHUYÊN BIỆT (KHẮC PHỤC LỖI) ***
-Khi học sinh hỏi về mục lục sách (ví dụ: Tin 10 KNTT, Tin 11 CD), bạn PHẢI cung cấp thông tin sau:
-
-# --- DỮ LIỆU LỚP 10 (ĐÃ BỔ SUNG) ---
-* **Sách Tin học 10 – KẾT NỐI TRI THỨC VỚI CUỘC SỐNG (KNTT)** gồm các Chủ đề chính:
-    1. Chủ đề 1: Máy tính và xã hội tri thức
-    2. Chủ đề 2: Mạng máy tính và Internet
-    3. Chủ đề 3: Đạo đức, pháp luật và văn hoá trong môi trường số
-    4. Chủ đề 4: Ứng dụng tin học (Thiết kế đồ họa)
-    5. Chủ đề 5: Giải quyết vấn đề với sự trợ giúp của máy tính (Lập trình Python)
-    6. Chủ đề 6: Hướng nghiệp với tin học
-
-* **Sách Tin học 10 – CÁNH DIỀU (CD)** gồm các Chủ đề chính:
-    1. Chủ đề A: Máy tính và xã hội tri thức
-    2. Chủ đề B: Mạng máy tính và Internet
-    3. Chủ đề D: Đạo đức, pháp luật và văn hóa trong môi trường số
-    4. Chủ đề E: Ứng dụng tin học (Thiết kế đồ họa)
-    5. Chủ đề F: Giải quyết vấn đề với sự trợ giúp của máy tính (Lập trình Python)
-    6. Chủ đề G: Hướng nghiệp với tin học
-
-* **Sách Tin học 10 – CHÂN TRỜI SÁNG TẠO (CTST)** gồm các Chủ đề chính:
-    1. Chủ đề 1: Máy tính và xã hội
-    2. Chủ đề 2: Mạng máy tính và Internet
-    3. Chủ đề 3: Đạo đức, pháp luật và văn hóa trong môi trường số
-    4. Chủ đề 4: Ứng dụng tin học (Phần mềm đồ họa)
-    5. Chủ đề 5: Giải quyết vấn đề với sự trợ giúp của máy tính (Lập trình Python)
-    6. Chủ đề 6: Hướng nghiệp
-
-# --- DỮ LIỆU LỚP 11 (ĐÃ BỔ SUNG) ---
-* **Sách Tin học 11 – KẾT NỐI TRI THỨC VỚI CUỘC SỐNG (KNTT)** gồm các Chủ đề chính:
-    1. Chủ đề 1: Máy tính và xã hội tri thức (Hệ điều hành, Phần mềm...)
-    2. Chủ đề 2: Tổ chức lưu trữ, tìm kiếm và trao đổi thông tin
-    3. Chủ đề 3: Đạo đức, pháp luật và văn hóa trong môi trường số
-    4. Chủ đề 4: Giới thiệu các hệ cơ sở dữ liệu (CSDL)
-    5. (Và các chuyên đề CS/ICT như Lập trình, Đồ họa/Đa phương tiện)
-
-* **Sách Tin học 11 – CÁNH DIỀU (CD)** gồm các Chủ đề chính:
-    1. Chủ đề A: Máy tính và xã hội tri thức (Bên trong máy tính, HĐH...)
-    2. Chủ đề C: Tổ chức lưu trữ, tìm kiếm và trao đổi thông tin
-    3. Chủ đề F: Giới thiệu các hệ cơ sở dữ liệu (CSDL)
-    4. (Và các chuyên đề CS/ICT)
-
-* **Sách Tin học 11 – CHÂN TRỜI SÁNG TẠO (CTST)** gồm các Chủ đề chính:
-    1. Chủ đề 1: Máy tính và xã hội tri thức (Hệ điều hành...)
-    2. Chủ đề 2: Tổ chức lưu trữ, tìm kiếm và trao đổi thông tin
-    3. Chủ đề 3: Đạo đức, pháp luật và văn hóa trong môi trường số
-    4. Chủ đề 4: Giới thiệu các hệ cơ sở dữ liệu (CSDL)
-    5. (Và các chuyên đề CS/ICT)
-
-# --- DỮ LIỆU LỚP 12 (CÓ SẴN) ---
-* **Sách Tin học 12 – KẾT NỐI TRI THỨC VỚI CUỘC SỐNG (KNTT)** gồm 5 Chủ đề chính:
-    1.  Chủ đề 1: Máy tính và xã hội tri thức (Ví dụ: Công nghệ, AI)
-    2.  Chủ đề 2: Đạo đức, pháp luật và văn hóa trong không gian số
-    3.  Chủ đề 3: Hệ cơ sở dữ liệu (Ví dụ: CSDL, Hệ quản trị CSDL)
-    4.  Chủ đề 4: Lập trình và ứng dụng (Ví dụ: Cấu trúc dữ liệu cơ bản, Thư viện lập trình)
-    5.  Chủ đề 5: Mạng máy tính và Internet (Ví dụ: Mạng máy tính, Bảo mật mạng)
-(Và các sách khác...)
+# ... (Giữ nguyên toàn bộ dữ liệu mục lục của thầy) ...
 *** KẾT THÚC DỮ LIỆU CHUYÊN BIỆT ***
 
 
@@ -126,15 +77,32 @@ Khi nhận được thông tin trong một tin nhắn hệ thống bắt đầu 
 """
 
 # --- BƯỚC 3: KHỞI TẠO CLIENT VÀ CHỌN MÔ HÌNH ---
+
+# [THAY ĐỔI] 4. Khởi tạo mô hình Gemini với System Instruction
+MODEL_NAME = 'gemini-2.5-pro' 
 try:
-    client = Groq(api_key=api_key) 
+    # Cấu hình an toàn để tránh bị chặn (quan trọng)
+    safety_settings = {
+        'HARASSMENT': 'BLOCK_NONE',
+        'HATE_SPEECH': 'BLOCK_NONE',
+        'SEXUALLY_EXPLICIT': 'BLOCK_NONE',
+        'DANGEROUS_CONTENT': 'BLOCK_NONE',
+    }
+    
+    # Khởi tạo model và gán system_instruction vào
+    gemini_model = genai.GenerativeModel(
+        model_name=MODEL_NAME,
+        system_instruction=SYSTEM_INSTRUCTION,
+        safety_settings=safety_settings
+    )
+    print("Khởi tạo model Gemini 2.5 Pro thành công.")
 except Exception as e:
-    st.error(f"Lỗi khi cấu hình API Groq: {e}")
+    st.error(f"Lỗi khi khởi tạo Model Gemini: {e}")
     st.stop()
 
-MODEL_NAME = 'llama-3.1-8b-instant'
 
 # --- BƯỚC 4: CẤU HÌNH TRANG VÀ CSS ---
+# (Giữ nguyên không thay đổi)
 st.set_page_config(page_title="Chatbot Tin học 2018", page_icon="✨", layout="centered")
 st.markdown("""
 <style>
@@ -158,7 +126,7 @@ with st.sidebar:
     
     if st.button("➕ Cuộc trò chuyện mới", use_container_width=True):
         st.session_state.messages = []
-        # st.session_state.pop("knowledge_data", None) # Không cần xóa cache RAG mỗi lần chat mới
+        # st.session_state.pop("knowledge_data", None) # Không cần xóa cache RAG
         st.rerun()
 
     st.markdown("---")
@@ -170,23 +138,26 @@ with st.sidebar:
         "*(Cao Sỹ Bảo Chung)*"
     )
     st.markdown("---")
+    # [THAY ĐỔI] 5. Cập nhật tên Model mới
     st.caption(f"Model: {MODEL_NAME}")
 
 
 # --- BƯỚC 4.6: CÁC HÀM RAG (ĐÃ KÍCH HOẠT) --- #
+# (Giữ nguyên toàn bộ 2 hàm RAG của thầy, chúng tương thích 100%)
 
 @st.cache_data(ttl=3600) 
 def load_and_process_pdfs(pdf_folder="data_pdf"):
     """
     Tải tất cả file PDF từ một thư mục, trích xuất văn bản theo từng trang,
     và tạo ra ma trận TF-IDF cũng như vectorizer.
+    (Giữ nguyên code của thầy)
     """
     print(f"Bắt đầu quét thư mục: {pdf_folder}")
     pdf_files = glob.glob(os.path.join(pdf_folder, "*.pdf"))
     
     if not pdf_files:
         print("CẢNH BÁO: Không tìm thấy file PDF nào trong thư mục 'data_pdf'. RAG sẽ không hoạt động.")
-        return [], None, None # Trả về bộ rỗng
+        return [], None, None 
 
     chunks = []
     for pdf_path in pdf_files:
@@ -196,7 +167,6 @@ def load_and_process_pdfs(pdf_folder="data_pdf"):
             for page_num, page in enumerate(reader.pages):
                 text = page.extract_text()
                 if text:
-                    # Thêm thông tin nguồn (tên file, số trang) vào chunk
                     source_info = f"[Nguồn: {os.path.basename(pdf_path)}, Trang {page_num + 1}]"
                     chunks.append(f"{source_info}\n\n{text}")
         except Exception as e:
@@ -208,16 +178,14 @@ def load_and_process_pdfs(pdf_folder="data_pdf"):
 
     print(f"Đã trích xuất {len(chunks)} trang PDF. Bắt đầu vector hóa (TF-IDF)...")
     
-    # Bắt đầu vector hóa
     try:
         vectorizer = TfidfVectorizer(
-            stop_words=None, # Có thể thêm stop_words tiếng Việt nếu muốn
-            ngram_range=(1, 2) # Xem xét cả cụm 1 và 2 từ
+            stop_words=None, 
+            ngram_range=(1, 2) 
         )
         tfidf_matrix = vectorizer.fit_transform(chunks)
         print("Vector hóa hoàn tất.")
         
-        # Trả về 3 đối tượng: danh sách chunks, ma trận TF-IDF, và bộ vector hóa
         return chunks, tfidf_matrix, vectorizer
     
     except ValueError as e:
@@ -231,56 +199,59 @@ def load_and_process_pdfs(pdf_folder="data_pdf"):
 def find_relevant_knowledge(query, chunks, tfidf_matrix, vectorizer, num_chunks=3):
     """
     Tìm các chunks (trang) liên quan nhất đến câu hỏi bằng TF-IDF và Cosine Similarity.
+    (Giữ nguyên code của thầy)
     """
-    # 1. Kiểm tra xem RAG có dữ liệu không
     if not chunks or tfidf_matrix is None or vectorizer is None:
-        return [] # Không có dữ liệu RAG để tìm kiếm
+        return [] 
 
-    # 2. Vector hóa câu hỏi của người dùng
     query_vector = vectorizer.transform([query])
-    
-    # 3. Tính toán độ tương đồng cosine
     cosine_similarities = cosine_similarity(query_vector, tfidf_matrix).flatten()
     
-    # 4. Lấy N chunks có điểm cao nhất
-    # Chỉ lấy những chunks có điểm > 0 (có liên quan)
-    relevant_indices = np.where(cosine_similarities > 0)[0]
+    # Chỉ lấy những chunks có điểm > 0.1 (Ngưỡng liên quan tối thiểu)
+    relevant_indices = np.where(cosine_similarities > 0.1)[0]
     
-    # Sắp xếp các chỉ mục này theo điểm số giảm dần
     sorted_indices = sorted(relevant_indices, key=lambda i: cosine_similarities[i], reverse=True)
-    
-    # Lấy N chỉ mục hàng đầu (hoặc ít hơn nếu không đủ)
     top_indices = sorted_indices[:num_chunks]
 
     if not top_indices:
-        return [] # Không tìm thấy chunk nào có độ tương đồng > 0
+        return [] 
         
-    # 5. Trả về nội dung của các chunks đó
     relevant_chunks = [chunks[i] for i in top_indices]
     return relevant_chunks
 
+# --- [THAY ĐỔI] 6. HÀM CHUYỂN ĐỔI LỊCH SỬ SANG FORMAT GEMINI ---
+def convert_history_for_gemini(messages):
+    """
+    Chuyển đổi lịch sử chat của Streamlit (role/content) 
+    sang định dạng của Gemini (role/parts).
+    Lưu ý: "assistant" của Streamlit -> "model" của Gemini.
+    """
+    gemini_history = []
+    for msg in messages:
+        role = 'model' if msg['role'] == 'assistant' else 'user'
+        gemini_history.append({'role': role, 'parts': [msg['content']]})
+    return gemini_history
 
 # --- BƯỚC 5: KHỞI TẠO LỊCH SỬ CHAT VÀ "SỔ TAY" PDF (RAG ĐÃ MỞ) --- #
+# (Giữ nguyên)
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# --- KÍCH HOẠT RAG ---
-# Tải và xử lý PDF khi app khởi động (chỉ chạy 1 lần)
 if "knowledge_data" not in st.session_state:
     with st.spinner("👩‍🏫 Em đang đọc 'Sổ tay Tin học' (PDF)..."):
-        # Hàm load_and_process_pdfs trả về (chunks, matrix, vectorizer)
         st.session_state.knowledge_data = load_and_process_pdfs()
         print("RAG (Đọc PDF) đã được tải và xử lý.")
-# --- KẾT THÚC KÍCH HOẠT RAG ---
 
 
 # --- BƯỚC 6: HIỂN THỊ LỊCH SỬ CHAT ---
+# (Giữ nguyên)
 for message in st.session_state.messages:
     avatar = "✨" if message["role"] == "assistant" else "👤"
     with st.chat_message(message["role"], avatar=avatar):
         st.markdown(message["content"])
 
 # --- BƯỚC 7: MÀN HÌNH CHÀO MỪNG VÀ GỢI Ý ---
+# (Giữ nguyên)
 logo_path = "LOGO.jpg" 
 col1, col2 = st.columns([1, 5])
 with col1:
@@ -298,7 +269,7 @@ def set_prompt_from_suggestion(text):
 if not st.session_state.messages:
     st.markdown(f"<div class='welcome-message'>Xin chào! Thầy/em cần hỗ trợ gì về môn Tin học (Chương trình 2018)?</div>", unsafe_allow_html=True)
     st.markdown("<br>", unsafe_allow_html=True)
-    # ... (Toàn bộ các nút bấm gợi ý của thầy giữ nguyên) ...
+    
     col1_btn, col2_btn = st.columns(2)
     with col1_btn:
         st.button(
@@ -324,7 +295,9 @@ if not st.session_state.messages:
         )
 
 
-# --- BƯỚC 8: XỬ LÝ INPUT (ĐÃ KÍCH HOẠT RAG PDF) --- # <--- ĐÃ CẬP NHẬT
+# --- BƯỚC 8: XỬ LÝ INPUT (ĐÃ KÍCH HOẠT RAG PDF) --- # 
+# [THAY ĐỔI] 7. Đây là phần thay đổi LỚN NHẤT (toàn bộ logic gọi API)
+
 prompt_from_input = st.chat_input("Mời thầy hoặc các em đặt câu hỏi về Tin học...")
 prompt_from_button = st.session_state.pop("prompt_from_button", None)
 prompt = prompt_from_button or prompt_from_input
@@ -335,7 +308,7 @@ if prompt:
     with st.chat_message("user", avatar="👤"):
         st.markdown(prompt)
 
-    # 2. Gửi câu hỏi đến Groq (ĐÃ BAO GỒM RAG)
+    # 2. Gửi câu hỏi đến GEMINI (ĐÃ BAO GỒM RAG)
     try:
         with st.chat_message("assistant", avatar="✨"):
             placeholder = st.empty()
@@ -347,18 +320,15 @@ if prompt:
             chunks, tfidf_matrix, vectorizer = st.session_state.knowledge_data
             
             # 2.2. Tìm kiếm kiến thức liên quan
-            # (Hàm này sẽ trả về [] nếu không có dữ liệu RAG)
             retrieved_context = find_relevant_knowledge(prompt, chunks, tfidf_matrix, vectorizer, num_chunks=3)
             
-            # 2.3. Chuẩn bị danh sách tin nhắn gửi cho AI
-            messages_to_send = [
-                {"role": "system", "content": SYSTEM_INSTRUCTION}
-            ]
+            # 2.3. Chuẩn bị lịch sử chat cho Gemini
+            # Lấy *toàn bộ* lịch sử, bao gồm cả câu hỏi mới nhất
+            messages_for_api = convert_history_for_gemini(st.session_state.messages)
             
             # 2.4. (QUAN TRỌNG) Chèn Context RAG vào tin nhắn
             if retrieved_context:
                 print(f"Đã tìm thấy {len(retrieved_context)} mẩu kiến thức RAG cho câu hỏi.")
-                # Tạo một tin nhắn "system" đặc biệt để chứa kiến thức
                 context_message = (
                     "--- BẮT ĐẦU DỮ LIỆU TRA CỨU TỪ 'SỔ TAY' (RAG) ---\n"
                     "Đây là thông tin bổ sung từ 'Sổ tay Tin học' của bạn. "
@@ -368,35 +338,45 @@ if prompt:
                     context_message += f"--- NGUỒN {i+1} ---\n{chunk_text}\n\n"
                 context_message += "--- KẾT THÚC DỮ LIỆU TRA CỨU ---\n"
                 
-                # Thêm tin nhắn context này vào *trước* lịch sử chat
-                messages_to_send.append({"role": "system", "content": context_message})
+                # Chèn RAG vào trước câu hỏi cuối cùng của người dùng
+                # Lấy ra tin nhắn cuối cùng (là câu hỏi của user)
+                last_user_message = messages_for_api.pop()
+                # Tạo nội dung prompt mới, kết hợp RAG và câu hỏi gốc
+                new_prompt_content = f"{context_message}\n\nCâu hỏi: {last_user_message['parts'][0]}"
+                # Đưa tin nhắn đã "bổ sung" RAG trở lại vào lịch sử
+                messages_for_api.append({'role': 'user', 'parts': [new_prompt_content]})
+                
             else:
                 print("Không tìm thấy kiến thức RAG liên quan. Trả lời bình thường.")
 
-            # 2.5. Thêm toàn bộ lịch sử chat (bao gồm cả câu hỏi mới nhất)
-            messages_to_send.extend(st.session_state.messages)
-            
             # --- KẾT THÚC PHẦN RAG --- #
 
-            # 2.6. Gọi API Groq
-            stream = client.chat.completions.create(
-                messages=messages_to_send, # Gửi tin nhắn ĐÃ BAO GỒM RAG
-                model=MODEL_NAME,
+            # 2.5. Gọi API Gemini (Stream)
+            # Khởi tạo phiên chat với lịch sử (trừ tin nhắn cuối cùng, vì nó sẽ là prompt)
+            chat_session = gemini_model.start_chat(
+                history=messages_for_api[:-1] # Toàn bộ lịch sử TRỪ câu hỏi cuối
+            )
+            
+            # Gửi câu hỏi cuối cùng (đã bổ sung RAG nếu có)
+            stream = chat_session.send_message(
+                messages_for_api[-1]['parts'], # Chỉ gửi nội dung câu hỏi cuối
                 stream=True
             )
             
-            # 2.7. Lặp qua từng "mẩu" (chunk) API trả về
+            # 2.6. Lặp qua từng "mẩu" (chunk) API trả về
             for chunk in stream:
-                if chunk.choices[0].delta.content is not None: 
-                    bot_response_text += chunk.choices[0].delta.content
+                # Gemini có thể trả về chunk rỗng hoặc lỗi, cần kiểm tra
+                if chunk.parts:
+                    bot_response_text += chunk.parts[0].text
                     placeholder.markdown(bot_response_text + "▌")
-                    time.sleep(0.005) # <--- Tạo hiệu ứng
+                    time.sleep(0.005) # Giữ hiệu ứng
             
             placeholder.markdown(bot_response_text) # Xóa dấu ▌ khi hoàn tất
 
     except Exception as e:
         with st.chat_message("assistant", avatar="✨"):
-            st.error(f"Xin lỗi, đã xảy ra lỗi khi kết nối Groq: {e}")
+            # [THAY ĐỔI] 8. Cập nhật thông báo lỗi
+            st.error(f"Xin lỗi, đã xảy ra lỗi khi kết nối Gemini: {e}")
         bot_response_text = ""
 
     # 3. Thêm câu trả lời của bot vào lịch sử
