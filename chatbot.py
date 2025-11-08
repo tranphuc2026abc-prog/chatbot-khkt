@@ -5,6 +5,8 @@
 import streamlit as st
 # [THAY ĐỔI] 1. Bỏ Groq, thêm thư viện của Google
 import google.generativeai as genai
+# [SỬA LỖI] Thêm dòng này để tắt Safety
+from google.generativeai.types import HarmCategory, HarmBlockThreshold
 import os
 import glob
 import time
@@ -81,19 +83,19 @@ Khi nhận được thông tin trong một tin nhắn hệ thống bắt đầu 
 # [THAY ĐỔI] 4. Khởi tạo mô hình Gemini với System Instruction
 MODEL_NAME = 'gemini-2.5-pro' 
 try:
-    # Cấu hình an toàn để tránh bị chặn (quan trọng)
+    # [SỬA LỖI] Cập nhật safety_settings dùng Enum
     safety_settings = {
-        'HARASSMENT': 'BLOCK_NONE',
-        'HATE_SPEECH': 'BLOCK_NONE',
-        'SEXUALLY_EXPLICIT': 'BLOCK_NONE',
-        'DANGEROUS_CONTENT': 'BLOCK_NONE',
+        HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
+        HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
+        HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
+        HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
     }
     
     # Khởi tạo model và gán system_instruction vào
     gemini_model = genai.GenerativeModel(
         model_name=MODEL_NAME,
         system_instruction=SYSTEM_INSTRUCTION,
-        safety_settings=safety_settings
+        safety_settings=safety_settings # <--- Dùng biến đã sửa
     )
     print("Khởi tạo model Gemini 2.5 Pro thành công.")
 except Exception as e:
