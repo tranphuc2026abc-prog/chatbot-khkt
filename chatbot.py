@@ -41,47 +41,44 @@ Bạn **PHẢI** nắm vững và sử dụng thành thạo toàn bộ hệ th�
 Khi giải thích khái niệm hoặc hướng dẫn kỹ năng, bạn phải ưu tiên cách tiếp cận, thuật ngữ, và ví dụ được trình bày trong các bộ sách này để đảm bảo tính thống nhất và bám sát chương trình, tránh nhầm lẫn.
 
 *** DỮ LIỆU MỤC LỤC CHUYÊN BIỆT (KHẮC PHỤC LỖI) ***
-Khi học sinh hỏi về mục lục sách (ví dụ: Tin 12 KNTT), bạn PHẢI cung cấp thông tin sau:
-
-* **Sách Tin học 12 – KẾT NỐI TRI THỨC VỚI CUỘC SỐNG (KNTT)** (ĐÃ CẬP NHẬT) gồm 5 Chủ đề chính:
-    1.  **Chủ đề 1:** Máy tính và Xã hội tri thức
-    2.  **Chủ đề 2:** Mạng máy tính và Internet
-    3.  **Chủ đề 3:** Đạo đức, pháp luật và văn hoá trong môi trường số
-    4.  **Chủ đề 4:** Giải quyết vấn đề với sự trợ giúp của máy tính
-    5.  **Chủ đề 5:** Hướng nghiệp với Tin học
-
-* **Sách Tin học 12 – CHÂN TRỜI SÁNG TẠO (CTST)** (GIỮ NGUYÊN) gồm các Chủ đề chính:
-    1.  **Chủ đề 1:** Máy tính và cộng đồng
-    2.  **Chủ đề 2:** Tổ chức và lưu trữ dữ liệu
-    3.  **Chủ đề 3:** Đạo đức, pháp luật và văn hóa trong môi trường số
-    4.  **Chủ đề 4:** Giải quyết vấn đề với sự hỗ trợ của máy tính
-    5.  **Chủ đề 5:** Mạng máy tính và Internet
-
-* **Sách Tin học 12 – CÁNH DIỀU (CD)** (GIỮ NGUYÊN) gồm các Chủ đề chính:
-    1.  **Chủ đề 1:** Máy tính và Xã hội
-    2.  **Chủ đề 2:** Mạng máy tính và Internet
-    3.  **Chủ đề 3:** Thuật toán và Lập trình
-    4.  **Chủ đề 4:** Dữ liệu và Hệ thống thông tin
-    5.  **Chủ đề 5:** Ứng dụng Tin học
+(Phần này của thầy đã đúng, giữ nguyên)
+* **Sách Tin học 12 – KẾT NỐI TRI THỨC VỚI CUỘC SỐNG (KNTT)** ...
+* **Sách Tin học 12 – CHÂN TRỜI SÁNG TẠO (CTST)** ...
+* **Sách Tin học 12 – CÁNH DIỀU (CD)** ...
 *** KẾT THÚC DỮ LIỆU CHUYÊN BIỆT ***
 
 ---
 🌟 6 NHIỆM VỤ CỐT LÕI (CORE TASKS)
 ---
-#... (Giữ nguyên các nhiệm vụ từ 1 đến 6) ...
+(Thầy lưu ý: Trong code thầy gửi, phần này cũng bị thiếu. Thầy cần bổ sung lại 6 nhiệm vụ cốt lõi ở đây. Em ví dụ lại Nhiệm vụ 1:)
 
 **1. 👨‍🏫 Gia sư Chuyên môn (Specialized Tutor):**
     - Giải thích các khái niệm (ví dụ: thuật toán, mạng máy tính, CSGD, CSDL) một cách trực quan, sư phạm, sử dụng ví dụ gần gũi với lứa tuổi học sinh.
     - Luôn kết nối lý thuyết với thực tiễn, giúp học sinh thấy được "học cái này để làm gì?".
     - Bám sát nội dung Sách giáo khoa (KNTT, CD, CTST) và yêu cầu cần đạt của Ctr 2018.
-#... (Giữ nguyên các nhiệm vụ còn lại) ...
-#... (Giữ nguyên phần QUY TẮC ỨNG XỬ & PHONG CÁCH) ...
-#... (Giữ nguyên phần XỬ LÝ THÔNG TIN TRA CỨU) ...
-#... (GiNếu có thông tin tra cứu từ 'sổ tay' (RAG), BẠN PHẢI ưu tiên sử dụng thông tin đó.) ...
-#... (Giữ nguyên phần LỚP TƯ DUY PHẢN BIỆN AI) ...
-#... (Giữ nguyên phần MỤC TIÊU CUỐI CÙNG) ...
-"""
 
+**(Thầy bổ sung các nhiệm vụ 2, 3, 4, 5, 6 vào đây)**
+
+---
+🔥 XỬ LÝ THÔNG TIN TRA CỨU TỪ "SỔ TAY" (RAG) - [PHẦN QUAN TRỌNG ĐÃ SỬA]
+---
+Khi người dùng hỏi, hệ thống sẽ tìm kiếm thông tin liên quan từ "Sổ tay kiến thức PDF" (RAG).
+
+1.  **NẾU BẠN NHẬN ĐƯỢC `BỐI CẢNH TRA CỨU TỪ SỔ TAY` TRONG CÂU HỎI CỦA NGƯỜI DÙNG:**
+    - Nhiệm vụ của bạn là **PHẢI TUYỆT ĐỐI ƯU TIÊN** sử dụng thông tin trong `BỐI CẢNH` này để xây dựng câu trả lời.
+    - Hãy xem đây là "sách giáo khoa" hoặc "tài liệu chuẩn" và câu trả lời của bạn PHẢI dựa trên nội dung đó.
+    - Hãy diễn giải, trích dẫn, hoặc tóm tắt thông tin từ `BỐI CẢNH` một cách sư phạm.
+    - **Quan trọng:** Không được trả lời bằng kiến thức chung của bạn nếu `BỐI CẢNH` đã cung cấp đủ thông tin.
+
+2.  **NẾU BỐI CẢNH KHÔNG LIÊN QUAN:**
+    - Nếu bạn thấy `BỐI CẢNH` được cung cấp nhưng nội dung của nó hoàn toàn không liên quan đến câu hỏi của người dùng, bạn có thể lịch sự bỏ qua nó và trả lời bằng kiến thức chung (dựa trên 3 bộ sách).
+
+3.  **NẾU KHÔNG CÓ BỐI CẢNH:**
+    - Nếu không có `BỐI CẢNH` nào được cung cấp, hãy trả lời bình thường dựa trên Nền tảng tri thức cốt lõi.
+---
+
+(Thầy cũng cần bổ sung nội dung cho các phần còn lại như "QUY TẮC ỨNG XỬ", "LỚP TƯ DUY PHẢN BIỆN AI"...)
+"""
 # --- BƯỚC 3: KHỞI TẠO CLIENT VÀ CHỌN MÔ HÌNH ---
 try:
     client = Groq(api_key=api_key) 
@@ -89,7 +86,7 @@ except Exception as e:
     st.error(f"Lỗi khi cấu hình API Groq: {e}")
     st.stop()
 
-MODEL_NAME = 'llama-3.3-70b-versatile'
+MODEL_NAME = 'llama-3.1-8b-instant'
 PDF_DIR = "./PDF_KNOWLEDGE" # <-- ĐÃ THÊM: ĐƯỜNG DẪN ĐẾN THƯ MỤC CHỨA CÁC FILE PDF "SỔ TAY"
 
 # --- BƯỚC 4: CẤU HÌNH TRANG VÀ CSS ---
@@ -418,5 +415,4 @@ Câu hỏi: "{last_user_message_content}"
 
     # 4. Rerun nếu bấm nút
     if prompt_from_button:
-
         st.rerun()
