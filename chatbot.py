@@ -16,11 +16,10 @@ import numpy as np # <-- ĐÃ THÊM: Hỗ trợ tính toán
 
 # --- BƯỚC 1: LẤY API KEY ---
 try:
-    api_key = st.secrets["GROQ_API_KEY"]
+    api_key = st.secrets["GROQ_API_KEY"]
 except (KeyError, FileNotFoundError):
-    st.error("Lỗi: Không tìm thấy GROQ_API_KEY. Vui lòng thêm vào Secrets trên Streamlit Cloud.")
-    st.stop()
-    
+    st.error("Lỗi: Không tìm thấy GROQ_API_KEY. Vui lòng thêm vào Secrets trên Streamlit Cloud.")
+    st.stop()
 # --- BƯỚC 2: THIẾT LẬP VAI TRÒ (SYSTEM_INSTRUCTION) ---
 SYSTEM_INSTRUCTION = """
 ---
