@@ -86,7 +86,7 @@ except Exception as e:
     st.error(f"Lỗi khi cấu hình API Groq: {e}")
     st.stop()
 
-MODEL_NAME = 'llama-3.1-70b-instant'
+MODEL_NAME = 'llama-3.1-8b-instant'
 PDF_DIR = "./PDF_KNOWLEDGE" # <-- ĐÃ THÊM: ĐƯỜNG DẪN ĐẾN THƯ MỤC CHỨA CÁC FILE PDF "SỔ TAY"
 
 # --- BƯỚC 4: CẤU HÌNH TRANG VÀ CSS ---
@@ -417,3 +417,4 @@ Câu hỏi: "{last_user_message_content}"
     if prompt_from_button:
 
         st.rerun()
+
