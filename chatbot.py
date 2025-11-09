@@ -9,7 +9,7 @@ import os
 import glob
 import time
 from pypdf import PdfReader # <-- ĐÃ THÊM: Thư viện đọc PDF
-from langchain.text_splitter import RecursiveCharacterTextSplitter # <-- ĐÃ THÊM: Thư viện chia nhỏ văn bản
+from langchain.text_splitters import RecursiveCharacterTextSplitter # <-- ĐÃ THÊM: Thư viện chia nhỏ văn bản
 from sklearn.feature_extraction.text import TfidfVectorizer # <-- ĐÃ THÊM: Vector hóa
 from sklearn.metrics.pairwise import cosine_similarity # <-- ĐÃ THÊM: Tính tương đồng
 import numpy as np # <-- ĐÃ THÊM: Hỗ trợ tính toán
