@@ -1,2 +1,7 @@
 streamlit
-google-generativeai
+groq
+pypdf
+langchain
+langchain-text-splitters
+scikit-learn
+numpy
