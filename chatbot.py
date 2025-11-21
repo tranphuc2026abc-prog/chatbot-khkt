@@ -4,18 +4,20 @@ import os
 import glob
 import time
 from pypdf import PdfReader
+
 # --- CÁC THƯ VIỆN RAG CHUẨN (FAISS + EMBEDDINGS) ---
+# Đã cập nhật các import chuẩn cho phiên bản mới nhất
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain.schema import Document
+from langchain_core.documents import Document  # <-- ĐÃ SỬA DÒNG NÀY (QUAN TRỌNG)
 
 # --- CẤU HÌNH ---
 st.set_page_config(page_title="Chatbot Tin học KTC", page_icon="🤖", layout="centered")
 MODEL_NAME = 'llama-3.1-8b-instant'
 PDF_DIR = "./PDF_KNOWLEDGE" # Thư mục chứa SGK PDF
 
-# --- CSS GIAO DIỆN (Giữ nguyên phong cách của thầy) ---
+# --- CSS GIAO DIỆN ---
 st.markdown("""
 <style>
     [data-testid="stSidebar"] {background-color: #f8f9fa; border-right: 1px solid #e6e6e6;}
