@@ -156,7 +156,7 @@ if prompt:
     if st.session_state.vector_db:
         # Tìm kiếm 3 đoạn văn bản tương đồng nhất (Semantic Search)
         # k=3 nghĩa là lấy 3 đoạn liên quan nhất
-        results = st.session_state.vector_db.similarity_search(prompt, k=3)
+        results = st.session_state.vector_db.similarity_search(prompt, k=6)
         
         if results:
             for doc in results:
@@ -206,4 +206,5 @@ if prompt:
             st.session_state.messages.append({"role": "assistant", "content": full_response})
 
         except Exception as e:
+
             st.error(f"Đã xảy ra lỗi kết nối: {e}")
