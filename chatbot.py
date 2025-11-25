@@ -4,16 +4,18 @@ import os
 import glob
 import time
 from pypdf import PdfReader
+
+# --- CÁC THƯ VIỆN RAG (LANGCHAIN) ---
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.documents import Document
 
-# --- 1. CẤU HÌNH TRANG (PHẢI Ở DÒNG ĐẦU TIÊN) ---
+# --- 1. CẤU HÌNH TRANG (BẮT BUỘC Ở DÒNG ĐẦU TIÊN) ---
 st.set_page_config(
     page_title="Chatbot KTC - Trợ lý Tin học",
     page_icon="🤖",
-    layout="wide", # Chuyển sang wide để thoáng hơn
+    layout="wide", # Giao diện rộng
     initial_sidebar_state="expanded"
 )
 
@@ -22,33 +24,74 @@ MODEL_NAME = 'llama-3.1-8b-instant'
 PDF_DIR = "./PDF_KNOWLEDGE"
 LOGO_PATH = "LOGO.jpg" # Đảm bảo file ảnh nằm cùng thư mục code
 
-# --- 2. CSS TÙY CHỈNH (NÂNG CẤP GIAO DIỆN) ---
-# Phong cách: Clean, Modern, Tech Blue
+# --- 2. CSS TÙY CHỈNH GIAO DIỆN (NÂNG CẤP FULL) ---
 st.markdown("""
 <style>
     /* 1. Tùy chỉnh Font và Màu nền chính */
     .stApp {
-        background-color: #f4f6f9; /* Xám xanh rất nhạt, dịu mắt */
+        background-color: #f4f6f9; /* Xám xanh rất nhạt */
     }
     
-    /* 2. Tùy chỉnh Sidebar */
+    /* 2. Tùy chỉnh Sidebar (Thu gọn khoảng cách) */
     [data-testid="stSidebar"] {
         background-color: #ffffff;
         border-right: 1px solid #e0e0e0;
         box-shadow: 2px 0 5px rgba(0,0,0,0.05);
     }
     
-    /* 3. Tùy chỉnh Tiêu đề Gradient */
+    /* Ép nội dung Sidebar lên sát trên cùng */
+    [data-testid="stSidebar"] .block-container {
+        padding-top: 1rem; 
+        padding-bottom: 1rem;
+    }
+    
+    /* Thu hẹp khoảng cách các phần tử trong Sidebar */
+    [data-testid="stSidebar"] .stMarkdown {
+        margin-bottom: -10px;
+    }
+    
+    [data-testid="stSidebar"] hr {
+        margin: 15px 0;
+    }
+
+    /* 3. Style cho Box Thông tin tác giả (Thay thế Expander) */
+    .author-box {
+        background-color: #f0f8ff; /* AliceBlue */
+        border: 1px solid #cceeff;
+        border-radius: 8px;
+        padding: 12px;
+        font-size: 0.9rem;
+        margin-top: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    }
+    .author-title {
+        font-weight: bold;
+        color: #0072ff;
+        margin-bottom: 2px;
+        font-size: 0.85rem;
+    }
+    .author-content {
+        color: #333;
+        margin-bottom: 8px;
+    }
+    .author-list {
+        margin: 0;
+        padding-left: 20px;
+        color: #333;
+    }
+
+    /* 4. Tùy chỉnh Tiêu đề Gradient (Main) */
     .gradient-text {
         background: linear-gradient(45deg, #004e92, #000428);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         font-weight: 800;
-        font-size: 2.5rem;
-        padding-bottom: 1rem;
+        font-size: 2.2rem;
+        padding-bottom: 0.5rem;
+        text-align: center;
     }
     
-    /* 4. Tùy chỉnh Bong bóng chat */
+    /* 5. Tùy chỉnh Bong bóng chat */
     .stChatMessage {
         background-color: transparent;
         border: none;
@@ -63,15 +106,15 @@ st.markdown("""
     }
     /* Tin nhắn của User */
     div[data-testid="stChatMessage"]:nth-child(odd) {
-        background-color: #e3f2fd; /* Xanh dương nhạt */
+        background-color: #e3f2fd;
         border-radius: 15px;
         padding: 15px;
         border: 1px solid #bbdefb;
     }
 
-    /* 5. Nút bấm và Input */
+    /* 6. Nút bấm */
     .stButton>button {
-        border-radius: 25px;
+        border-radius: 20px;
         background: linear-gradient(90deg, #00c6ff, #0072ff);
         color: white;
         border: none;
@@ -83,19 +126,10 @@ st.markdown("""
         box-shadow: 0 4px 10px rgba(0,114,255,0.3);
         color: white;
     }
-    
-    /* 6. Info Box Custom */
-    .info-box {
-        padding: 15px;
-        background-color: #e8f5e9;
-        border-left: 5px solid #4CAF50;
-        border-radius: 5px;
-        margin-bottom: 10px;
-    }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. XỬ LÝ API VÀ DATABASE (LOGIC CŨ) ---
+# --- 3. XỬ LÝ KẾT NỐI (API & DATABASE) ---
 try:
     api_key = st.secrets["GROQ_API_KEY"]
 except (KeyError, FileNotFoundError):
@@ -147,7 +181,6 @@ def initialize_vector_db():
 # --- KHỞI TẠO STATE ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
-    # Tin nhắn chào mừng mặc định
     st.session_state.messages.append({
         "role": "assistant", 
         "content": "Chào bạn! Mình là Chatbot KTC 🤖. Mình có thể giúp gì cho bạn về môn Tin học hôm nay?"
@@ -156,70 +189,86 @@ if "messages" not in st.session_state:
 if "vector_db" not in st.session_state:
     st.session_state.vector_db = initialize_vector_db()
 
-# --- 4. GIAO DIỆN SIDEBAR (CHUYÊN NGHIỆP HÓA) ---
+# --- 4. GIAO DIỆN SIDEBAR (ĐÃ TỐI ƯU HÓA) ---
 with st.sidebar:
-    # Hiển thị Logo
-    if os.path.exists(LOGO_PATH):
-        st.image(LOGO_PATH, use_column_width=True)
-    else:
-        st.warning("⚠️ Chưa tìm thấy file LOGO.jpg")
+    # 1. LOGO: Canh giữa, kích thước vừa phải
+    col_l, col_c, col_r = st.columns([1, 5, 1]) 
+    with col_c:
+        if os.path.exists(LOGO_PATH):
+            st.image(LOGO_PATH, width=160) # Chỉnh width nhỏ lại để không chiếm hết màn hình
+        else:
+            st.warning("Thiếu file LOGO.jpg")
     
-    st.markdown("<h2 style='text-align: center; color: #0072ff;'>TRỢ LÝ KTC</h2>", unsafe_allow_html=True)
+    # 2. Tiêu đề dự án (Compact HTML)
+    st.markdown("""
+        <div style='text-align: center; margin-top: -10px;'>
+            <h2 style='color: #0072ff; margin-bottom: 5px; font-size: 1.5rem;'>TRỢ LÝ KTC</h2>
+            <p style='font-size: 0.8rem; color: #666; margin-top: 0;'>
+                Knowledge & Technology Chatbot
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
+    
     st.markdown("---")
     
-    # Trạng thái hệ thống
-    st.markdown("### 📡 Trạng thái hệ thống")
+    # 3. Trạng thái hệ thống
     if st.session_state.vector_db:
-        st.success("✅ Kết nối tri thức SGK: **Sẵn sàng**")
+        st.markdown("💾 Dữ liệu SGK: <span style='color:green; font-weight:bold'>Đã kết nối</span>", unsafe_allow_html=True)
     else:
-        st.warning("⚠️ Chưa nạp dữ liệu SGK")
+        st.markdown("💾 Dữ liệu SGK: <span style='color:red; font-weight:bold'>Chưa nạp</span>", unsafe_allow_html=True)
         
-    st.markdown("---")
+    # 4. Thông tin Tác giả (Dùng HTML Box để hiển thị trọn vẹn)
+    st.markdown("""
+        <div class="author-box">
+            <div class="author-title">🏫 Đơn vị thực hiện:</div>
+            <div class="author-content">THCS VÀ THPT PHẠM KIỆT</div>
+            
+            <div class="author-title">👨‍🏫 GV Hướng Dẫn:</div>
+            <div class="author-content">Thầy Nguyễn Thế Khanh</div>
+            
+            <div class="author-title">🧑‍🎓 Nhóm tác giả:</div>
+            <ul class="author-list">
+                <li>Bùi Tá Tùng</li>
+                <li>Cao Sỹ Bảo Chung</li>
+            </ul>
+        </div>
+    """, unsafe_allow_html=True)
     
-    # Thông tin dự án (Quan trọng cho KHKT)
-    with st.expander("ℹ️ Thông tin dự án", expanded=True):
-        st.markdown("**TRƯỜNG:** THCS VÀ THPT PHẠM KIỆT")
-        st.markdown("**GVHD:** Thầy Nguyễn Thế Khanh")
-        st.markdown("**Nhóm tác giả:**")
-        st.markdown("- Bùi Tá Tùng")
-        st.markdown("- Cao Sỹ Bảo Chung")
-    
-    st.markdown("---")
-    if st.button("🗑️ Xóa lịch sử chat", use_container_width=True):
+    # Nút xóa lịch sử
+    st.markdown("<div style='height: 15px'></div>", unsafe_allow_html=True)
+    if st.button("🗑️ Làm mới hội thoại", use_container_width=True):
         st.session_state.messages = []
         st.rerun()
 
-# --- 5. GIAO DIỆN CHÍNH (MAIN COLUMN) ---
-# Tạo layout 3 cột để căn giữa nội dung chính, giúp mắt tập trung hơn
+# --- 5. GIAO DIỆN CHÍNH (MAIN COLUMN - 3 CỘT) ---
 col1, col2, col3 = st.columns([1, 6, 1])
 
 with col2:
     # Header chính
     st.markdown('<div class="gradient-text">CHATBOT HỖ TRỢ HỌC TẬP KTC</div>', unsafe_allow_html=True)
-    st.caption("🚀 Ứng dụng AI hỗ trợ tra cứu kiến thức Tin học chương trình GDPT 2018")
+    st.markdown("<p style='text-align: center; color: #666;'>🚀 Ứng dụng AI hỗ trợ tra cứu kiến thức Tin học chương trình GDPT 2018</p>", unsafe_allow_html=True)
     
     # Hiển thị lịch sử chat
     for message in st.session_state.messages:
-        # Chọn Avatar
         if message["role"] == "user":
-            avatar = "🧑‍🎓" # Avatar học sinh
+            avatar = "🧑‍🎓"
         else:
-            avatar = "🤖" # Avatar Robot (hoặc có thể dùng icon KTC nhỏ nếu muốn)
+            avatar = "🤖"
             
         with st.chat_message(message["role"], avatar=avatar):
-            st.markdown(message["content"])
+            st.markdown(message["content"], unsafe_allow_html=True)
 
     # Input area
     prompt = st.chat_input("Nhập câu hỏi của bạn tại đây...")
 
-    # --- LOGIC XỬ LÝ (GIỮ NGUYÊN) ---
+    # --- LOGIC XỬ LÝ (RAG + LLM) ---
     if prompt:
         # User message
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user", avatar="🧑‍🎓"):
             st.markdown(prompt)
 
-        # Retrieval
+        # Retrieval (Tìm kiếm trong PDF)
         context_text = ""
         sources_list = []
         if st.session_state.vector_db:
@@ -267,21 +316,19 @@ with col2:
                         full_response += content
                         placeholder.markdown(full_response + "▌")
                 
-                # Hiển thị trích dẫn nguồn (Feature hay cho KHKT)
+                # Hiển thị trích dẫn nguồn (Điểm cộng KHKT)
                 if sources_list:
-                    # Loại bỏ trùng lặp nguồn
                     unique_sources = list(set(sources_list))
                     citation_html = "<div style='margin-top:10px; font-size: 0.85em; color: #666; border-top: 1px solid #ddd; padding-top: 5px;'>📚 <b>Nguồn tham khảo:</b><br>"
                     for src in unique_sources:
                         citation_html += f"- <i>{src}</i><br>"
                     citation_html += "</div>"
-                    full_response += "\n" # Xuống dòng để tách text
-                    placeholder.markdown(full_response + "\n\n" + citation_html, unsafe_allow_html=True) # Render HTML cho đẹp
+                    full_response += "\n"
+                    placeholder.markdown(full_response + "\n\n" + citation_html, unsafe_allow_html=True)
                 else:
                     placeholder.markdown(full_response)
 
                 st.session_state.messages.append({"role": "assistant", "content": full_response})
 
             except Exception as e:
-
                 st.error(f"Đã xảy ra lỗi kết nối: {e}")
