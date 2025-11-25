@@ -178,7 +178,7 @@ with st.sidebar:
     
     # Thông tin dự án (Quan trọng cho KHKT)
     with st.expander("ℹ️ Thông tin dự án", expanded=True):
-        st.markdown("**Đơn vị:** THPT ABC (Thay tên trường thầy)")
+        st.markdown("**TRƯỜNG:** THCS VÀ THPT PHẠM KIỆT")
         st.markdown("**GVHD:** Thầy Nguyễn Thế Khanh")
         st.markdown("**Nhóm tác giả:**")
         st.markdown("- Bùi Tá Tùng")
@@ -283,4 +283,5 @@ with col2:
                 st.session_state.messages.append({"role": "assistant", "content": full_response})
 
             except Exception as e:
+
                 st.error(f"Đã xảy ra lỗi kết nối: {e}")
