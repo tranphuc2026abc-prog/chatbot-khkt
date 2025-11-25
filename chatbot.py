@@ -212,8 +212,8 @@ with st.sidebar:
     # Lưu ý: Viết liền mạch, không xuống dòng bừa bãi trong chuỗi string này
     st.markdown("""
         <div class="author-box">
-            <div class="author-title">🏫 Đơn vị thực hiện:</div>
-            <div class="author-content">THCS VÀ THPT PHẠM KIỆT</div>
+            <div class="author-title">🏫 Sản phẩm cuộc thi KHKT cấp trường:</div>
+            <div class="author-content">Năm học 2025-2026</div>
             <div class="author-title">👨‍🏫 GV Hướng Dẫn:</div>
             <div class="author-content">Thầy Nguyễn Thế Khanh</div>
             <div class="author-title">🧑‍🎓 Nhóm tác giả:</div>
@@ -311,4 +311,5 @@ with col2:
                 st.session_state.messages.append({"role": "assistant", "content": full_response})
 
             except Exception as e:
+
                 st.error(f"Đã xảy ra lỗi kết nối: {e}")
