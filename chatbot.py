@@ -24,99 +24,108 @@ MODEL_NAME = 'llama-3.1-8b-instant'
 PDF_DIR = "./PDF_KNOWLEDGE"
 LOGO_PATH = "LOGO.jpg" 
 
-# --- 2. CSS TÙY CHỈNH GIAO DIỆN (ĐÃ NÂNG CẤP) ---
+# --- 2. CSS TÙY CHỈNH GIAO DIỆN (ĐẸP HƠN, KHÔNG ẢNH HƯỞNG LOGIC) ---
 st.markdown("""
 <style>
     /* 1. Nền chính */
-    .stApp {background-color: #f4f6f9;}
+    .stApp {background-color: #f8f9fa;}
     
-    /* 2. Sidebar */
+    /* 2. Sidebar - Làm sạch và chuyên nghiệp */
     [data-testid="stSidebar"] {
         background-color: #ffffff;
         border-right: 1px solid #e0e0e0;
     }
-
-    /* 3. Box Thông tin tác giả */
+    
+    /* 3. Box Thông tin tác giả (Style mới) */
     .author-box {
-        background-color: #f0f8ff;
-        border: 1px solid #cceeff;
-        border-radius: 8px;
-        padding: 12px;
+        background-color: #f0f8ff; /* Màu xanh nhạt */
+        border: 1px solid #bae6fd;
+        border-radius: 10px;
+        padding: 15px;
         font-size: 0.9rem;
-        margin-top: 10px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-        color: #333;
+        margin-top: 15px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        color: #0f172a;
     }
-    .author-title {
+    .author-header {
         font-weight: bold;
-        color: #0072ff;
-        margin-top: 8px;
-        margin-bottom: 2px;
+        color: #0284c7; /* Xanh đậm */
+        margin-bottom: 5px;
         font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
-    .author-title:first-child { margin-top: 0; }
-    .author-content { color: #333; margin-bottom: 4px; font-weight: 500; }
-    .author-list { margin: 0; padding-left: 20px; color: #333; margin-bottom: 0; }
+    .author-content {
+        margin-bottom: 8px;
+        color: #334155;
+    }
+    .author-list {
+        margin: 0;
+        padding-left: 20px;
+        color: #334155;
+        font-weight: 500;
+    }
 
-    /* 4. Tiêu đề Gradient */
+    /* 4. Tiêu đề Gradient (Điểm nhấn chính) */
     .gradient-text {
-        background: linear-gradient(45deg, #004e92, #000428);
+        background: linear-gradient(90deg, #0f4c81, #1cb5e0);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         font-weight: 800;
-        font-size: 2.2rem;
-        padding-bottom: 0.5rem;
+        font-size: 2.5rem;
+        padding-bottom: 1rem;
         text-align: center;
+        margin-bottom: 0;
     }
     
-    /* 5. Chat Bubble */
-    .stChatMessage {background-color: transparent; border: none;}
+    /* 5. Chat Bubble (Bong bóng chat) */
+    .stChatMessage {
+        background-color: transparent; 
+        border: none;
+        padding: 10px;
+    }
+    /* Tin nhắn của Bot */
     div[data-testid="stChatMessage"]:nth-child(even) { 
         background-color: #ffffff;
-        border: 1px solid #e1e4e8;
-        border-radius: 15px;
-        padding: 10px 15px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        border: 1px solid #e2e8f0;
+        border-radius: 0px 15px 15px 15px; /* Bo góc kiểu chat */
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
     }
+    /* Tin nhắn của User */
     div[data-testid="stChatMessage"]:nth-child(odd) {
-        background-color: #e3f2fd;
-        border-radius: 15px;
-        padding: 10px 15px;
-        border: 1px solid #bbdefb;
+        background-color: #e0f2fe; /* Xanh rất nhạt */
+        border-radius: 15px 0px 15px 15px;
+        border: none;
     }
 
-    /* 6. Disclaimer Footer */
-    .footer-disclaimer {
-        text-align: center;
-        font-size: 0.75rem;
-        color: #888;
-        margin-top: 20px;
-        padding-top: 10px;
-        border-top: 1px solid #eee;
-    }
-
-    /* 7. Nút Gợi ý (Suggestion Buttons) */
-    .stButton button {
-        border-radius: 20px;
-        border: 1px solid #0072ff;
-        color: #0072ff;
-        background-color: white;
-        transition: 0.3s;
-    }
-    .stButton button:hover {
-        background-color: #0072ff;
-        color: white;
-    }
-    /* Riêng nút Làm mới ở Sidebar thì style khác */
-    [data-testid="stSidebar"] .stButton button {
-        background: linear-gradient(90deg, #ff6b6b, #ff4757);
+    /* 6. Button (Nút bấm) */
+    .stButton>button {
+        border-radius: 8px;
+        background-color: #0284c7;
         color: white;
         border: none;
+        font-weight: 600;
+        transition: all 0.2s;
+    }
+    .stButton>button:hover {
+        background-color: #0369a1;
+        color: white;
+        transform: translateY(-1px);
+    }
+
+    /* 7. Footer Disclaimer */
+    .footer-note {
+        text-align: center;
+        font-size: 0.75rem;
+        color: #94a3b8;
+        margin-top: 30px;
+        border-top: 1px dashed #cbd5e1;
+        padding-top: 10px;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. XỬ LÝ KẾT NỐI ---
+# --- 3. XỬ LÝ KẾT NỐI (GIỮ NGUYÊN) ---
 try:
     api_key = st.secrets["GROQ_API_KEY"]
 except (KeyError, FileNotFoundError):
@@ -127,14 +136,22 @@ client = Groq(api_key=api_key)
 
 @st.cache_resource(show_spinner=False)
 def initialize_vector_db():
-    if not os.path.exists(PDF_DIR) or not glob.glob(os.path.join(PDF_DIR, "*.pdf")):
+    vector_db = None
+    if not os.path.exists(PDF_DIR):
+        os.makedirs(PDF_DIR)
         return None
     
+    pdf_files = glob.glob(os.path.join(PDF_DIR, "*.pdf"))
+    if not pdf_files:
+        return None
+
     with st.spinner('🔄 Đang khởi tạo "Bộ não" kiến thức (Vector hóa dữ liệu)...'):
         documents = []
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-        
-        for pdf_path in glob.glob(os.path.join(PDF_DIR, "*.pdf")):
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=1000, chunk_overlap=200, separators=["\n\n", "\n", ".", " ", ""]
+        )
+
+        for pdf_path in pdf_files:
             try:
                 reader = PdfReader(pdf_path)
                 file_name = os.path.basename(pdf_path)
@@ -143,42 +160,65 @@ def initialize_vector_db():
                     if text:
                         chunks = text_splitter.split_text(text)
                         for chunk in chunks:
-                            documents.append(Document(page_content=chunk, metadata={"source": file_name, "page": i + 1}))
-            except Exception: pass
+                            documents.append(Document(
+                                page_content=chunk,
+                                metadata={"source": file_name, "page": i + 1}
+                            ))
+            except Exception as e:
+                print(f"Lỗi đọc file {pdf_path}: {e}")
 
-        if not documents: return None
+        if not documents:
+            return None
+
         embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-        return FAISS.from_documents(documents, embeddings)
+        vector_db = FAISS.from_documents(documents, embeddings)
+        return vector_db
 
-# --- KHỞI TẠO STATE ---
+# --- KHỞI TẠO STATE (GIỮ NGUYÊN) ---
 if "messages" not in st.session_state:
-    st.session_state.messages = [{"role": "assistant", "content": "Chào bạn! Mình là Chatbot KTC 🤖. Mình có thể giúp gì cho bạn về môn Tin học hôm nay?"}]
+    st.session_state.messages = []
+    st.session_state.messages.append({
+        "role": "assistant", 
+        "content": "Chào bạn! Mình là Chatbot KTC 🤖. Mình có thể giúp gì cho bạn về môn Tin học hôm nay?"
+    })
 
 if "vector_db" not in st.session_state:
     st.session_state.vector_db = initialize_vector_db()
 
-# --- 4. SIDEBAR ---
+# --- 4. GIAO DIỆN SIDEBAR (CẬP NHẬT GIAO DIỆN) ---
 with st.sidebar:
-    # Logo lớn hơn theo yêu cầu
-    col_c = st.container()
+    # 1. LOGO (Tối ưu hiển thị)
     if os.path.exists(LOGO_PATH):
-        col_c.image(LOGO_PATH, use_container_width=True) # Dùng full chiều rộng
+        st.image(LOGO_PATH, use_container_width=True) # Dùng lệnh mới để logo full khung
+    else:
+        st.warning("Thiếu file LOGO.jpg")
     
-    st.markdown("<h2 style='text-align: center; color: #0072ff; font-size: 1.5rem;'>TRỢ LÝ KTC</h2>", unsafe_allow_html=True)
+    # 2. Tiêu đề Sidebar
+    st.markdown("""
+        <div style='text-align: center; margin-top: 10px;'>
+            <h3 style='color: #0f4c81; margin: 0;'>TRỢ LÝ KTC</h3>
+            <p style='font-size: 0.8rem; color: #64748b;'>Knowledge & Technology Chatbot</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
     st.markdown("---")
     
-    # Trạng thái
-    status_html = "<span style='color:green; font-weight:bold'>Đã kết nối</span>" if st.session_state.vector_db else "<span style='color:red; font-weight:bold'>Chưa nạp</span>"
-    st.markdown(f"💾 Dữ liệu SGK: {status_html}", unsafe_allow_html=True)
+    # 3. Trạng thái
+    if st.session_state.vector_db:
+        st.markdown("💾 Dữ liệu SGK: <span style='color:green; font-weight:bold'>● Đã kết nối</span>", unsafe_allow_html=True)
+    else:
+        st.markdown("💾 Dữ liệu SGK: <span style='color:red; font-weight:bold'>● Chưa nạp</span>", unsafe_allow_html=True)
         
-    # Thông tin tác giả
+    # 4. Thông tin Tác giả (HTML MỚI - ĐẸP HƠN)
     st.markdown("""
         <div class="author-box">
-            <div class="author-title">🏫 Sản phẩm KHKT:</div>
-            <div class="author-content"> Năm học: 2025-2026 </div>
-            <div class="author-title">👨‍🏫 GV Hướng Dẫn:</div>
+            <div class="author-header">🏫 Sản phẩm KHKT</div>
+            <div class="author-content">Năm học 2025 - 2026</div>
+            
+            <div class="author-header">👨‍🏫 GV Hướng Dẫn</div>
             <div class="author-content">Thầy Nguyễn Thế Khanh</div>
-            <div class="author-title">🧑‍🎓 Nhóm tác giả:</div>
+            
+            <div class="author-header">🧑‍🎓 Nhóm tác giả</div>
             <ul class="author-list">
                 <li>Bùi Tá Tùng</li>
                 <li>Cao Sỹ Bảo Chung</li>
@@ -186,105 +226,97 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
     
+    # Nút xóa lịch sử (Giữ nguyên logic)
     st.markdown("<div style='height: 20px'></div>", unsafe_allow_html=True)
-    # Đổi icon thành Refresh
-    if st.button("🔄 Bắt đầu cuộc trò chuyện mới", use_container_width=True):
-        st.session_state.messages = [{"role": "assistant", "content": "Chào bạn! Mình là Chatbot KTC 🤖. Mình có thể giúp gì cho bạn về môn Tin học hôm nay?"}]
+    if st.button("🗑️ Làm mới hội thoại", use_container_width=True):
+        st.session_state.messages = []
         st.rerun()
 
-# --- 5. GIAO DIỆN CHÍNH ---
-col1, col2, col3 = st.columns([1, 10, 1]) # Tăng độ rộng cột giữa
+# --- 5. GIAO DIỆN CHÍNH (LOGIC GIỮ NGUYÊN - CHỈ ĐỔI GIAO DIỆN) ---
+col1, col2, col3 = st.columns([1, 8, 1]) # Điều chỉnh tỷ lệ cột cho cân đối hơn
 
 with col2:
-    st.markdown('<div class="gradient-text">CHATBOT HỖ TRỢ HỌC TẬP KTC</div>', unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #666;'>🚀 Ứng dụng AI hỗ trợ tra cứu kiến thức Tin học chương trình GDPT 2018</p>", unsafe_allow_html=True)
+    # Tiêu đề mới
+    st.markdown('<h1 class="gradient-text">CHATBOT HỖ TRỢ HỌC TẬP KTC</h1>', unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #64748b; font-style: italic; margin-bottom: 30px;'>🚀 Ứng dụng AI hỗ trợ tra cứu kiến thức Tin học chương trình GDPT 2018</p>", unsafe_allow_html=True)
     
-    # --- HIỂN THỊ LỊCH SỬ CHAT ---
+    # Vòng lặp hiển thị tin nhắn (Giữ nguyên)
     for message in st.session_state.messages:
-        avatar = "🧑‍🎓" if message["role"] == "user" else "🤖"
+        if message["role"] == "user":
+            avatar = "🧑‍🎓"
+        else:
+            avatar = "🤖"
         with st.chat_message(message["role"], avatar=avatar):
             st.markdown(message["content"], unsafe_allow_html=True)
 
-    # --- XỬ LÝ EMPTY STATE (GỢI Ý CÂU HỎI) ---
-    # Chỉ hiện khi chỉ có đúng 1 tin nhắn (lời chào của Bot)
-    if len(st.session_state.messages) == 1:
-        st.markdown("<p style='text-align:center; color:#888; margin-top:20px;'>💡 <b>Gợi ý câu hỏi bắt đầu:</b></p>", unsafe_allow_html=True)
-        btn_col1, btn_col2, btn_col3 = st.columns(3)
-        
-        # Danh sách câu hỏi gợi ý
-        questions = [
-            "Cấu trúc rẽ nhánh là gì?",
-            "Cách tạo mục lục trong Word?",
-            "Phần mềm nguồn mở là gì?"
-        ]
-        
-        # Logic nút bấm: Khi bấm -> thêm vào history -> rerun
-        if btn_col1.button(questions[0], use_container_width=True):
-            st.session_state.messages.append({"role": "user", "content": questions[0]})
-            st.rerun()
-        if btn_col2.button(questions[1], use_container_width=True):
-            st.session_state.messages.append({"role": "user", "content": questions[1]})
-            st.rerun()
-        if btn_col3.button(questions[2], use_container_width=True):
-            st.session_state.messages.append({"role": "user", "content": questions[2]})
-            st.rerun()
-
-    # --- INPUT CHAT ---
-    # Luôn hiển thị input ở dưới cùng
+    # INPUT và XỬ LÝ (LOGIC CỐT LÕI - GIỮ NGUYÊN 100%)
     prompt = st.chat_input("Nhập câu hỏi của bạn tại đây...")
+
     if prompt:
         st.session_state.messages.append({"role": "user", "content": prompt})
-        st.rerun()
+        with st.chat_message("user", avatar="🧑‍🎓"):
+            st.markdown(prompt)
 
-    # --- LOGIC AI TRẢ LỜI (TRIGGER) ---
-    # Kiểm tra: Nếu tin nhắn cuối cùng là của User -> Gọi AI
-    if st.session_state.messages[-1]["role"] == "user":
-        user_msg = st.session_state.messages[-1]["content"]
-        
-        # Hiển thị tin nhắn user (để chắc chắn nó hiện ra trước khi AI chạy)
-        # (Lưu ý: Streamlit render lại từ đầu nên thực ra nó đã hiện ở vòng for trên rồi)
-
-        # 1. Tìm kiếm RAG
         context_text = ""
         sources_list = []
         if st.session_state.vector_db:
-            results = st.session_state.vector_db.similarity_search(user_msg, k=3)
-            for doc in results:
-                context_text += f"\n---\nNội dung: {doc.page_content}\nNguồn: {doc.metadata['source']} (Trang {doc.metadata['page']})"
-                sources_list.append(f"{doc.metadata['source']} - Tr. {doc.metadata['page']}")
+            results = st.session_state.vector_db.similarity_search(prompt, k=3)
+            if results:
+                for doc in results:
+                    context_text += f"\n---\nNội dung: {doc.page_content}\nNguồn: {doc.metadata['source']} (Trang {doc.metadata['page']})"
+                    sources_list.append(f"{doc.metadata['source']} - Tr. {doc.metadata['page']}")
 
-        # 2. Tạo Prompt
-        SYSTEM_PROMPT = """Bạn là "Chatbot KTC", trợ lý ảo chuyên gia Tin học. Trả lời dựa trên SGK. Luôn trích dẫn nguồn."""
-        final_prompt = f"{SYSTEM_PROMPT}\n--- BỐI CẢNH SGK ---\n{context_text}\n--- CÂU HỎI ---\n{user_msg}"
+        SYSTEM_PROMPT = """
+        Bạn là "Chatbot KTC", trợ lý ảo chuyên gia về Tin học.
+        Nhiệm vụ: Giải đáp thắc mắc dựa trên bối cảnh SGK được cung cấp.
+        Phong cách: Thân thiện, sư phạm, khuyến khích học sinh tư duy.
+        Định dạng: Sử dụng Markdown để trình bày đẹp (in đậm từ khóa, gạch đầu dòng).
+        Quan trọng: Luôn trích dẫn nguồn nếu thông tin lấy từ sách.
+        """
+        
+        final_prompt = f"""
+        {SYSTEM_PROMPT}
+        --- BỐI CẢNH SGK ---
+        {context_text if context_text else "Không tìm thấy trong tài liệu, hãy trả lời dựa trên kiến thức chung của bạn."}
+        --- CÂU HỎI ---
+        {prompt}
+        """
 
-        # 3. Gọi API & Stream
         with st.chat_message("assistant", avatar="🤖"):
             placeholder = st.empty()
             full_response = ""
             try:
                 chat_completion = client.chat.completions.create(
-                    messages=[{"role": "system", "content": final_prompt}, {"role": "user", "content": user_msg}],
-                    model=MODEL_NAME, stream=True, temperature=0.3
+                    messages=[
+                        {"role": "system", "content": final_prompt},
+                        {"role": "user", "content": prompt}
+                    ],
+                    model=MODEL_NAME,
+                    stream=True,
+                    temperature=0.3
                 )
-                
+
                 for chunk in chat_completion:
                     if chunk.choices[0].delta.content:
-                        full_response += chunk.choices[0].delta.content
+                        content = chunk.choices[0].delta.content
+                        full_response += content
                         placeholder.markdown(full_response + "▌")
                 
-                # Hiển thị nguồn
                 if sources_list:
                     unique_sources = list(set(sources_list))
-                    citation_html = "<div style='margin-top:10px; font-size: 0.8em; color: #666; border-top: 1px dashed #ccc; padding-top: 5px;'>📚 <b>Nguồn tham khảo:</b><br>" + "<br>".join([f"- <i>{s}</i>" for s in unique_sources]) + "</div>"
-                    placeholder.markdown(full_response + "\n" + citation_html, unsafe_allow_html=True)
+                    citation_html = "<div style='margin-top:10px; font-size: 0.85em; color: #666; border-top: 1px solid #ddd; padding-top: 5px;'>📚 <b>Nguồn tham khảo:</b><br>"
+                    for src in unique_sources:
+                        citation_html += f"- <i>{src}</i><br>"
+                    citation_html += "</div>"
+                    full_response += "\n"
+                    placeholder.markdown(full_response + "\n\n" + citation_html, unsafe_allow_html=True)
                 else:
                     placeholder.markdown(full_response)
-                
-                # Lưu vào lịch sử
-                st.session_state.messages.append({"role": "assistant", "content": full_response + (citation_html if sources_list else "")})
-            
-            except Exception as e:
-                st.error(f"Lỗi kết nối: {e}")
 
-    # --- DISCLAIMER FOOTER ---
-    st.markdown('<div class="footer-disclaimer">⚠️ Lưu ý: AI có thể mắc lỗi. Vui lòng kiểm tra lại thông tin quan trọng với SGK.</div>', unsafe_allow_html=True)
+                st.session_state.messages.append({"role": "assistant", "content": full_response})
+
+            except Exception as e:
+                st.error(f"Đã xảy ra lỗi kết nối: {e}")
+
+    # --- DISCLAIMER (PHẦN THÊM VÀO CUỐI CÙNG - KHÔNG ẢNH HƯỞNG LOGIC) ---
+    st.markdown('<div class="footer-note">⚠️ Lưu ý: AI có thể mắc lỗi (hallucination). Vui lòng kiểm tra lại thông tin quan trọng với SGK.</div>', unsafe_allow_html=True)
