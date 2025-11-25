@@ -4,33 +4,98 @@ import os
 import glob
 import time
 from pypdf import PdfReader
-
-# --- CÁC THƯ VIỆN RAG CHUẨN (FAISS + EMBEDDINGS) ---
-# Đã cập nhật các import chuẩn cho phiên bản mới nhất
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_core.documents import Document  # <-- ĐÃ SỬA DÒNG NÀY (QUAN TRỌNG)
+from langchain_core.documents import Document
 
-# --- CẤU HÌNH ---
-st.set_page_config(page_title="Chatbot Tin học KTC", page_icon="🤖", layout="centered")
+# --- 1. CẤU HÌNH TRANG (PHẢI Ở DÒNG ĐẦU TIÊN) ---
+st.set_page_config(
+    page_title="Chatbot KTC - Trợ lý Tin học",
+    page_icon="🤖",
+    layout="wide", # Chuyển sang wide để thoáng hơn
+    initial_sidebar_state="expanded"
+)
+
+# --- CÁC HẰNG SỐ ---
 MODEL_NAME = 'llama-3.1-8b-instant'
-PDF_DIR = "./PDF_KNOWLEDGE" # Thư mục chứa SGK PDF
+PDF_DIR = "./PDF_KNOWLEDGE"
+LOGO_PATH = "LOGO.jpg" # Đảm bảo file ảnh nằm cùng thư mục code
 
-# --- CSS GIAO DIỆN ---
+# --- 2. CSS TÙY CHỈNH (NÂNG CẤP GIAO DIỆN) ---
+# Phong cách: Clean, Modern, Tech Blue
 st.markdown("""
 <style>
-    [data-testid="stSidebar"] {background-color: #f8f9fa; border-right: 1px solid #e6e6e6;}
-    .main .block-container {max-width: 850px; padding-top: 2rem; padding-bottom: 5rem;}
-    .stButton>button {border-radius: 20px; height: 3em; background-color: #ffffff; border: 1px solid #d0d0d0;}
-    .stButton>button:hover {border-color: #4CAF50; color: #4CAF50;}
-    .chat-message {padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem; display: flex;}
-    .chat-message.user {background-color: #e6f7ff;}
-    .chat-message.bot {background-color: #f0f2f6;}
+    /* 1. Tùy chỉnh Font và Màu nền chính */
+    .stApp {
+        background-color: #f4f6f9; /* Xám xanh rất nhạt, dịu mắt */
+    }
+    
+    /* 2. Tùy chỉnh Sidebar */
+    [data-testid="stSidebar"] {
+        background-color: #ffffff;
+        border-right: 1px solid #e0e0e0;
+        box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+    }
+    
+    /* 3. Tùy chỉnh Tiêu đề Gradient */
+    .gradient-text {
+        background: linear-gradient(45deg, #004e92, #000428);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: 800;
+        font-size: 2.5rem;
+        padding-bottom: 1rem;
+    }
+    
+    /* 4. Tùy chỉnh Bong bóng chat */
+    .stChatMessage {
+        background-color: transparent;
+        border: none;
+    }
+    /* Tin nhắn của Bot */
+    div[data-testid="stChatMessage"]:nth-child(even) { 
+        background-color: #ffffff;
+        border: 1px solid #e1e4e8;
+        border-radius: 15px;
+        padding: 15px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    /* Tin nhắn của User */
+    div[data-testid="stChatMessage"]:nth-child(odd) {
+        background-color: #e3f2fd; /* Xanh dương nhạt */
+        border-radius: 15px;
+        padding: 15px;
+        border: 1px solid #bbdefb;
+    }
+
+    /* 5. Nút bấm và Input */
+    .stButton>button {
+        border-radius: 25px;
+        background: linear-gradient(90deg, #00c6ff, #0072ff);
+        color: white;
+        border: none;
+        font-weight: bold;
+        transition: all 0.3s ease;
+    }
+    .stButton>button:hover {
+        transform: scale(1.02);
+        box-shadow: 0 4px 10px rgba(0,114,255,0.3);
+        color: white;
+    }
+    
+    /* 6. Info Box Custom */
+    .info-box {
+        padding: 15px;
+        background-color: #e8f5e9;
+        border-left: 5px solid #4CAF50;
+        border-radius: 5px;
+        margin-bottom: 10px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# --- LẤY API KEY ---
+# --- 3. XỬ LÝ API VÀ DATABASE (LOGIC CŨ) ---
 try:
     api_key = st.secrets["GROQ_API_KEY"]
 except (KeyError, FileNotFoundError):
@@ -39,16 +104,9 @@ except (KeyError, FileNotFoundError):
 
 client = Groq(api_key=api_key)
 
-# --- HỆ THỐNG RAG: FAISS + EMBEDDINGS ---
 @st.cache_resource(show_spinner=False)
 def initialize_vector_db():
-    """
-    Hàm này đọc PDF, tạo Embeddings và xây dựng Vector Store (FAISS).
-    Chạy 1 lần duy nhất khi khởi động app để tối ưu tốc độ.
-    """
     vector_db = None
-    
-    # 1. Kiểm tra thư mục PDF
     if not os.path.exists(PDF_DIR):
         os.makedirs(PDF_DIR)
         return None
@@ -58,12 +116,9 @@ def initialize_vector_db():
         return None
 
     with st.spinner('🔄 Đang khởi tạo "Bộ não" kiến thức (Vector hóa dữ liệu)...'):
-        # 2. Đọc và Chia nhỏ văn bản (Chunking)
         documents = []
         text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000,    # Kích thước mỗi đoạn (khoảng 2-3 đoạn văn)
-            chunk_overlap=200,  # Phần chồng lấn để giữ ngữ cảnh
-            separators=["\n\n", "\n", ".", " ", ""]
+            chunk_size=1000, chunk_overlap=200, separators=["\n\n", "\n", ".", " ", ""]
         )
 
         for pdf_path in pdf_files:
@@ -73,7 +128,6 @@ def initialize_vector_db():
                 for i, page in enumerate(reader.pages):
                     text = page.extract_text()
                     if text:
-                        # Lưu thêm metadata (tên sách, số trang) để trích dẫn nguồn
                         chunks = text_splitter.split_text(text)
                         for chunk in chunks:
                             documents.append(Document(
@@ -86,124 +140,147 @@ def initialize_vector_db():
         if not documents:
             return None
 
-        # 3. Tạo Embeddings (Sử dụng Model thu nhỏ của HuggingFace - Chạy Offline OK)
-        # Model này biến văn bản thành vector 384 chiều
         embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-
-        # 4. Tạo FAISS Index (Vector Database)
         vector_db = FAISS.from_documents(documents, embeddings)
-        
-        print(f"✅ Đã khởi tạo thành công Vector DB với {len(documents)} chunks kiến thức.")
-        
-    return vector_db
+        return vector_db
 
-# --- KHỞI TẠO SESSION STATE ---
+# --- KHỞI TẠO STATE ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
+    # Tin nhắn chào mừng mặc định
+    st.session_state.messages.append({
+        "role": "assistant", 
+        "content": "Chào bạn! Mình là Chatbot KTC 🤖. Mình có thể giúp gì cho bạn về môn Tin học hôm nay?"
+    })
 
 if "vector_db" not in st.session_state:
     st.session_state.vector_db = initialize_vector_db()
 
-# --- SIDEBAR ---
+# --- 4. GIAO DIỆN SIDEBAR (CHUYÊN NGHIỆP HÓA) ---
 with st.sidebar:
-    st.title("🤖 Chatbot KTC")
-    st.caption("Trợ lý học tập môn Tin học")
+    # Hiển thị Logo
+    if os.path.exists(LOGO_PATH):
+        st.image(LOGO_PATH, use_column_width=True)
+    else:
+        st.warning("⚠️ Chưa tìm thấy file LOGO.jpg")
+    
+    st.markdown("<h2 style='text-align: center; color: #0072ff;'>TRỢ LÝ KTC</h2>", unsafe_allow_html=True)
     st.markdown("---")
     
-    # Hiển thị trạng thái hệ thống RAG
+    # Trạng thái hệ thống
+    st.markdown("### 📡 Trạng thái hệ thống")
     if st.session_state.vector_db:
-        st.success("✅ Kết nối tri thức SGK: Đã sẵn sàng", icon="📚")
+        st.success("✅ Kết nối tri thức SGK: **Sẵn sàng**")
     else:
-        st.warning("⚠️ Chưa có dữ liệu SGK. Vui lòng chép file PDF vào thư mục PDF_KNOWLEDGE.", icon="📂")
+        st.warning("⚠️ Chưa nạp dữ liệu SGK")
         
+    st.markdown("---")
+    
+    # Thông tin dự án (Quan trọng cho KHKT)
+    with st.expander("ℹ️ Thông tin dự án", expanded=True):
+        st.markdown("**Đơn vị:** THPT ABC (Thay tên trường thầy)")
+        st.markdown("**GVHD:** Thầy Nguyễn Thế Khanh")
+        st.markdown("**Nhóm tác giả:**")
+        st.markdown("- Bùi Tá Tùng")
+        st.markdown("- Cao Sỹ Bảo Chung")
+    
+    st.markdown("---")
     if st.button("🗑️ Xóa lịch sử chat", use_container_width=True):
         st.session_state.messages = []
         st.rerun()
-        
-    st.markdown("---")
-    st.info("**GVHD:** Thầy Nguyễn Thế Khanh\n\n**Học sinh:**\n- Bùi Tá Tùng\n- Cao Sỹ Bảo Chung")
 
-# --- PROMPT KỸ SƯ (SYSTEM INSTRUCTION) ---
-SYSTEM_PROMPT = """
-Bạn là "Chatbot KTC", trợ lý ảo hỗ trợ học tập môn Tin học theo Chương trình GDPT 2018 (Bộ sách Kết nối tri thức, Cánh Diều, Chân trời sáng tạo).
-Phong cách trả lời:
-1. Sư phạm, dễ hiểu, thân thiện như một giáo viên giỏi.
-2. Luôn ưu tiên thông tin được cung cấp trong phần "BỐI CẢNH TRA CỨU".
-3. Nếu thông tin có trong BỐI CẢNH, hãy trích dẫn nguồn (Ví dụ: Theo SGK Tin học 10...).
-4. Nếu BỐI CẢNH không chứa thông tin trả lời, hãy dùng kiến thức của bạn nhưng phải nói rõ: "Thông tin này không có trong tài liệu tham khảo, nhưng theo kiến thức của tôi thì...".
-"""
+# --- 5. GIAO DIỆN CHÍNH (MAIN COLUMN) ---
+# Tạo layout 3 cột để căn giữa nội dung chính, giúp mắt tập trung hơn
+col1, col2, col3 = st.columns([1, 6, 1])
 
-# --- XỬ LÝ CHAT ---
-# 1. Hiển thị lịch sử
-for message in st.session_state.messages:
-    role_icon = "👤" if message["role"] == "user" else "🤖"
-    with st.chat_message(message["role"], avatar=role_icon):
-        st.markdown(message["content"])
-
-# 2. Nhận câu hỏi
-prompt = st.chat_input("Nhập câu hỏi về môn Tin học (VD: Mạng máy tính là gì?)...")
-
-if prompt:
-    # Thêm câu hỏi vào lịch sử
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user", avatar="👤"):
-        st.markdown(prompt)
-
-    # --- LOGIC RAG (RETRIEVAL) ---
-    context_text = ""
-    sources_list = []
+with col2:
+    # Header chính
+    st.markdown('<div class="gradient-text">CHATBOT HỖ TRỢ HỌC TẬP KTC</div>', unsafe_allow_html=True)
+    st.caption("🚀 Ứng dụng AI hỗ trợ tra cứu kiến thức Tin học chương trình GDPT 2018")
     
-    if st.session_state.vector_db:
-        # Tìm kiếm 3 đoạn văn bản tương đồng nhất (Semantic Search)
-        # k=3 nghĩa là lấy 3 đoạn liên quan nhất
-        results = st.session_state.vector_db.similarity_search(prompt, k=6)
-        
-        if results:
-            for doc in results:
-                context_text += f"\n---\nNội dung: {doc.page_content}\nNguồn: {doc.metadata['source']} (Trang {doc.metadata['page']})"
-                sources_list.append(f"{doc.metadata['source']} (Trang {doc.metadata['page']})")
-
-    # --- TẠO PROMPT CUỐI CÙNG GỬI CHO LLM ---
-    final_prompt = f"""
-    {SYSTEM_PROMPT}
-    
-    --- BẮT ĐẦU BỐI CẢNH TRA CỨU (THÔNG TIN TỪ SGK) ---
-    {context_text if context_text else "Không tìm thấy thông tin liên quan trong tài liệu."}
-    --- KẾT THÚC BỐI CẢNH ---
-    
-    Câu hỏi của học sinh: {prompt}
-    """
-
-    # --- GỌI API GROQ ---
-    with st.chat_message("assistant", avatar="🤖"):
-        placeholder = st.empty()
-        full_response = ""
-        try:
-            chat_completion = client.chat.completions.create(
-                messages=[
-                    {"role": "system", "content": final_prompt},
-                    {"role": "user", "content": prompt}
-                ],
-                model=MODEL_NAME,
-                stream=True,
-                temperature=0.3 # Giảm độ sáng tạo để tăng độ chính xác
-            )
-
-            for chunk in chat_completion:
-                if chunk.choices[0].delta.content:
-                    content = chunk.choices[0].delta.content
-                    full_response += content
-                    placeholder.markdown(full_response + "▌")
+    # Hiển thị lịch sử chat
+    for message in st.session_state.messages:
+        # Chọn Avatar
+        if message["role"] == "user":
+            avatar = "🧑‍🎓" # Avatar học sinh
+        else:
+            avatar = "🤖" # Avatar Robot (hoặc có thể dùng icon KTC nhỏ nếu muốn)
             
-            # Thêm phần trích dẫn nguồn vào cuối câu trả lời (Điểm cộng cho KHKT)
-            if sources_list:
-                citation_text = "\n\n---\nBadges: *" + ", ".join(list(set(sources_list))) + "*"
-                full_response += citation_text
+        with st.chat_message(message["role"], avatar=avatar):
+            st.markdown(message["content"])
+
+    # Input area
+    prompt = st.chat_input("Nhập câu hỏi của bạn tại đây...")
+
+    # --- LOGIC XỬ LÝ (GIỮ NGUYÊN) ---
+    if prompt:
+        # User message
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user", avatar="🧑‍🎓"):
+            st.markdown(prompt)
+
+        # Retrieval
+        context_text = ""
+        sources_list = []
+        if st.session_state.vector_db:
+            results = st.session_state.vector_db.similarity_search(prompt, k=3)
+            if results:
+                for doc in results:
+                    context_text += f"\n---\nNội dung: {doc.page_content}\nNguồn: {doc.metadata['source']} (Trang {doc.metadata['page']})"
+                    sources_list.append(f"{doc.metadata['source']} - Tr. {doc.metadata['page']}")
+
+        # System Prompt
+        SYSTEM_PROMPT = """
+        Bạn là "Chatbot KTC", trợ lý ảo chuyên gia về Tin học.
+        Nhiệm vụ: Giải đáp thắc mắc dựa trên bối cảnh SGK được cung cấp.
+        Phong cách: Thân thiện, sư phạm, khuyến khích học sinh tư duy.
+        Định dạng: Sử dụng Markdown để trình bày đẹp (in đậm từ khóa, gạch đầu dòng).
+        Quan trọng: Luôn trích dẫn nguồn nếu thông tin lấy từ sách.
+        """
+        
+        final_prompt = f"""
+        {SYSTEM_PROMPT}
+        --- BỐI CẢNH SGK ---
+        {context_text if context_text else "Không tìm thấy trong tài liệu, hãy trả lời dựa trên kiến thức chung của bạn."}
+        --- CÂU HỎI ---
+        {prompt}
+        """
+
+        # Generate Response
+        with st.chat_message("assistant", avatar="🤖"):
+            placeholder = st.empty()
+            full_response = ""
+            try:
+                chat_completion = client.chat.completions.create(
+                    messages=[
+                        {"role": "system", "content": final_prompt},
+                        {"role": "user", "content": prompt}
+                    ],
+                    model=MODEL_NAME,
+                    stream=True,
+                    temperature=0.3
+                )
+
+                for chunk in chat_completion:
+                    if chunk.choices[0].delta.content:
+                        content = chunk.choices[0].delta.content
+                        full_response += content
+                        placeholder.markdown(full_response + "▌")
                 
-            placeholder.markdown(full_response)
-            
-            # Lưu vào lịch sử
-            st.session_state.messages.append({"role": "assistant", "content": full_response})
+                # Hiển thị trích dẫn nguồn (Feature hay cho KHKT)
+                if sources_list:
+                    # Loại bỏ trùng lặp nguồn
+                    unique_sources = list(set(sources_list))
+                    citation_html = "<div style='margin-top:10px; font-size: 0.85em; color: #666; border-top: 1px solid #ddd; padding-top: 5px;'>📚 <b>Nguồn tham khảo:</b><br>"
+                    for src in unique_sources:
+                        citation_html += f"- <i>{src}</i><br>"
+                    citation_html += "</div>"
+                    full_response += "\n" # Xuống dòng để tách text
+                    placeholder.markdown(full_response + "\n\n" + citation_html, unsafe_allow_html=True) # Render HTML cho đẹp
+                else:
+                    placeholder.markdown(full_response)
 
-        except Exception as e:
-            st.error(f"Đã xảy ra lỗi kết nối: {e}")
+                st.session_state.messages.append({"role": "assistant", "content": full_response})
+
+            except Exception as e:
+                st.error(f"Đã xảy ra lỗi kết nối: {e}")
