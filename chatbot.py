@@ -5,7 +5,7 @@ import streamlit as st
 import shutil
 import pickle
 import re
-import uuid
+import hashlib  # <--- THÊM: Để tạo ID cố định (Deterministic ID)
 from pathlib import Path
 from typing import List, Tuple, Optional, Dict, Generator
 
@@ -59,7 +59,7 @@ class AppConfig:
 
     # RAG Parameters
     RETRIEVAL_K = 30       
-    FINAL_K = 7            # Tăng nhẹ để đảm bảo đủ ngữ cảnh
+    FINAL_K = 5            # Giảm K để giảm nhiễu, tập trung độ chính xác
     
     # Hybrid Search Weights
     BM25_WEIGHT = 0.4      
@@ -219,7 +219,7 @@ class UIManager:
         """, unsafe_allow_html=True)
 
 # ==================================
-# 3. LOGIC BACKEND - VERIFIABLE HYBRID RAG
+# 3. LOGIC BACKEND - VERIFIABLE HYBRID RAG (ĐÃ CHUẨN HÓA KHKT)
 # ==================================
 
 class RAGEngine:
@@ -257,6 +257,11 @@ class RAGEngine:
 
     @staticmethod
     def _structural_chunking(text: str, source_meta: dict) -> List[Document]:
+        """
+        Kỹ thuật Chunking theo cấu trúc SGK (Chương > Bài > Mục).
+        CẢI TIẾN QUAN TRỌNG: Sử dụng Deterministic ID (MD5 Hash) thay vì UUID ngẫu nhiên.
+        Đảm bảo tính tái lập (Reproducibility) cho KHKT.
+        """
         lines = text.split('\n')
         chunks = []
         
@@ -277,10 +282,12 @@ class RAGEngine:
         def commit_chunk(buf, meta):
             if not buf: return
             content = "\n".join(buf).strip()
-            if len(content) < 50: return 
+            if len(content) < 30: return # Bỏ qua chunk quá ngắn rác
             
-            # UNIQUE ID GENERATION
-            chunk_uid = str(uuid.uuid4())[:8] 
+            # --- TẠO ID CỐ ĐỊNH (DETERMINISTIC ID) ---
+            # Kết hợp Tên file + Nội dung để hash. Đảm bảo ID không đổi khi chạy lại.
+            raw_id_str = f"{meta.get('source', '')}_{content}"
+            chunk_uid = hashlib.md5(raw_id_str.encode('utf-8')).hexdigest()[:8]
             
             new_meta = meta.copy()
             new_meta.update({
@@ -288,7 +295,7 @@ class RAGEngine:
                 "chapter": current_chapter,
                 "lesson": current_lesson,
                 "section": current_section,
-                "context_str": f"{current_chapter} > {current_lesson} > {current_section}" 
+                "context_str": f"{current_chapter} > {current_lesson}" 
             })
             
             chunks.append(Document(page_content=content, metadata=new_meta))
@@ -302,13 +309,11 @@ class RAGEngine:
                 buffer = []
                 current_chapter = clean_header(line_stripped)
                 current_lesson = "Tổng quan chương"
-                current_section = "Giới thiệu"
             
             elif p_lesson.match(line_stripped):
                 commit_chunk(buffer, source_meta)
                 buffer = []
                 current_lesson = clean_header(line_stripped)
-                current_section = "Tổng quan bài"
                 
             elif p_section.match(line_stripped) or line_stripped.startswith("### "):
                 commit_chunk(buffer, source_meta)
@@ -424,164 +429,165 @@ class RAGEngine:
             return ensemble_retriever
         except Exception:
             return vector_db.as_retriever(search_kwargs={"k": AppConfig.RETRIEVAL_K})
-    
-    @staticmethod
-    def _sanitize_output(text: str) -> str:
-        cjk_pattern = re.compile(r'[\u4e00-\u9fff\u3400-\u4dbf\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]+')
-        text = cjk_pattern.sub("", text) 
-        return text
 
     # =========================================================================
-    # STRICT RAG GENERATION LOGIC - PHIÊN BẢN KIỂM CHỨNG KHKT
+    # STRICT RAG GENERATION LOGIC - PHIÊN BẢN KHKT V2 (AUDITABLE)
     # =========================================================================
     @staticmethod
     def generate_response(client, retriever, query) -> Generator[str, None, None]:
+        """
+        Quy trình xử lý nghiêm ngặt 3 bước:
+        1. Retrieval: Lấy chunk & ID.
+        2. Generation: Yêu cầu LLM gắn ID [ID:xxxx] vào cuối mỗi ý.
+        3. Audit (Hậu kiểm): Parse ID từ câu trả lời -> Đối chiếu với ID gốc.
+           - Nếu có ID ma (Hallucination) -> RETURN DEFAULT ERROR.
+           - Nếu không có ID nào -> RETURN DEFAULT ERROR.
+           - Chỉ trả về khi kiểm chứng 100%.
+        """
+        FAIL_MESSAGE = "Không tìm thấy thông tin phù hợp trong SGK hiện có."
+
         if not retriever:
-            yield "Hệ thống đang khởi tạo... vui lòng chờ giây lát."
+            yield "Hệ thống đang khởi tạo..."
             return
         
-        # --- 1. STRICT RETRIEVAL & RERANK ---
+        # --- BƯỚC 1: RETRIEVAL & RERANK ---
         initial_docs = retriever.invoke(query)
         
-        # Định tuyến ưu tiên: SGK > SGV > Tài liệu khác
+        # Scoring ưu tiên SGK
         scored_docs = []
         for doc in initial_docs:
             src = doc.metadata.get('source', '')
             bonus = 0.0
-            if "KNTT" in src: bonus = 2.0  # Ưu tiên cực cao cho SGK KNTT
+            if "KNTT" in src: bonus = 2.0 
             elif "_GV_" in src: bonus = 0.5
-            elif "ON THI" in src: bonus = 0.2
-            
             scored_docs.append({"doc": doc, "bonus": bonus})
             
         final_docs = []
         try:
             ranker = RAGEngine.load_reranker()
             if ranker and scored_docs:
-                passages = [
-                    {"id": str(i), "text": item["doc"].page_content, "meta": item["doc"].metadata} 
-                    for i, item in enumerate(scored_docs)
-                ]
+                passages = [{"id": str(i), "text": d["doc"].page_content, "meta": d["doc"].metadata} for i, d in enumerate(scored_docs)]
                 rerank_req = RerankRequest(query=query, passages=passages)
                 results = ranker.rank(rerank_req)
                 
-                final_results_with_score = []
+                # Sort by (Score + Bonus)
+                results_scored = []
                 for res in results:
-                    original_idx = int(res['id'])
-                    bonus = scored_docs[original_idx]['bonus']
-                    ai_score = res['score']
-                    # Công thức trọng số: AI Score + Bonus SGK
-                    total_score = ai_score + (bonus * 0.3) 
-                    final_results_with_score.append((res, total_score))
+                    idx = int(res['id'])
+                    total = res['score'] + (scored_docs[idx]['bonus'] * 0.2)
+                    results_scored.append((res, total))
                 
-                final_results_with_score.sort(key=lambda x: x[1], reverse=True)
-                top_k = final_results_with_score[:AppConfig.FINAL_K]
+                results_scored.sort(key=lambda x: x[1], reverse=True)
+                top_k = results_scored[:AppConfig.FINAL_K]
                 final_docs = [Document(page_content=r[0]['text'], metadata=r[0]['meta']) for r in top_k]
             else:
                 scored_docs.sort(key=lambda x: x['bonus'], reverse=True)
                 final_docs = [item["doc"] for item in scored_docs][:AppConfig.FINAL_K]
-        except Exception:
+        except:
             final_docs = [item["doc"] for item in scored_docs][:AppConfig.FINAL_K]
 
         if not final_docs:
-            yield "Không tìm thấy thông tin phù hợp trong SGK hiện có."
+            yield FAIL_MESSAGE
             return
 
-        # --- 2. XÂY DỰNG REGISTRY NGUỒN (KIỂM SOÁT METADATA) ---
-        valid_uids = {} # Dictionary để map ID -> Tên nguồn hiển thị đẹp
+        # --- BƯỚC 2: CONTEXT PREPARATION ---
+        # Map: chunk_uid -> Display Name
+        valid_uids_map = {} 
         context_parts = []
         
         for doc in final_docs:
             uid = doc.metadata.get('chunk_uid')
-            if not uid: continue
+            if not uid: continue # Bỏ qua nếu lỗi không có ID
             
-            src_raw = doc.metadata.get('source', '')
-            clean_name = src_raw.replace('.pdf', '').replace('_', ' ')
+            src_raw = doc.metadata.get('source', '').replace('.pdf', '').replace('_', ' ')
             lesson = doc.metadata.get('lesson', '').strip()
             
-            # Badge định danh
-            badge = "📄"
-            if "KNTT" in src_raw: badge = "SGK"
+            # Tạo tên hiển thị đẹp cho citation
+            if "KNTT" in src_raw: badge = "SGK KNTT"
             elif "GV" in src_raw: badge = "SGV"
-            elif "Python" in src_raw: badge = "Code"
+            else: badge = "Tài liệu"
             
-            # Lưu vào registry để validate sau này
-            valid_uids[uid] = f"{badge}: {clean_name} - {lesson}"
+            display_name = f"{badge}: {lesson}"
+            valid_uids_map[uid] = display_name
             
-            # Context format chặt chẽ để LLM nhìn thấy ID
-            context_parts.append(
-                f"<chunk id='{uid}'>\n{doc.page_content}\n</chunk>"
-            )
+            # Context input phải tường minh ID để LLM copy
+            context_parts.append(f"SOURCE_ID: {uid}\nCONTENT: {doc.page_content}\n---")
 
-        full_context = "\n".join(context_parts)
+        full_context_str = "\n".join(context_parts)
 
-        # --- 3. PROMPT KỸ THUẬT NGHIÊM NGẶT (STRICT PROMPT) ---
-        system_prompt = f"""Bạn là Trợ lý AI giáo dục chuẩn KHKT. Nhiệm vụ: Trả lời câu hỏi CHỈ DỰA TRÊN các chunk dữ liệu được cung cấp.
+        # --- BƯỚC 3: STRICT PROMPT ---
+        system_prompt = f"""Bạn là trợ lý AI giáo dục. Nhiệm vụ: Trả lời câu hỏi dựa trên các nguồn được cung cấp dưới đây.
 
-QUY TẮC BẮT BUỘC (TUÂN THỦ 100%):
-1. **KHÔNG BỊA ĐẶT**: Nếu thông tin không có trong context, trả lời "NO_INFO".
-2. **TRÍCH DẪN NGAY LẬP TỨC**: Mọi câu hoặc ý quan trọng phải kết thúc bằng ID của chunk chứa nó.
-   - Định dạng: Nội dung kiến thức [ID:xxxxxxxx].
-   - Ví dụ: Python là ngôn ngữ lập trình bậc cao [ID:1a2b3c4d].
-3. **KHÔNG GỘP ID**: Không được viết [ID:123, ID:456]. Hãy tách ra từng ý.
-4. **ƯU TIÊN SGK**: Nếu có mâu thuẫn, lấy thông tin từ chunk có nguồn SGK.
+DỮ LIỆU NGUỒN (CONTEXT):
+{full_context_str}
 
-DỮ LIỆU CONTEXT:
-{full_context}
+YÊU CẦU NGHIÊM NGẶT (VI PHẠM SẼ BỊ HỦY BỎ):
+1. Mọi ý trả lời đều phải trích dẫn nguồn bằng ID chính xác.
+2. Định dạng trích dẫn: [ID:xxxxxxxx] (Đặt ở cuối câu chứa thông tin).
+3. TUYỆT ĐỐI KHÔNG tự bịa ra ID không có trong Context.
+4. Nếu Context không đủ trả lời: Ghi "NO_INFO".
+5. Không trả lời kiểu "Theo tài liệu...". Hãy trả lời trực tiếp kiến thức + [ID].
+
+Ví dụ đúng: Python là ngôn ngữ lập trình bậc cao [ID:a1b2c3d4].
 """
         
         try:
+            # Gọi LLM (Non-streaming để kiểm soát hoàn toàn đầu ra)
             completion = client.chat.completions.create(
                 model=AppConfig.LLM_MODEL,
-                messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": query}],
-                temperature=0.0, # Deterministic - Không sáng tạo
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": query}
+                ],
+                temperature=0.0,
                 stream=False
             )
             raw_response = completion.choices[0].message.content.strip()
-            
+
             if "NO_INFO" in raw_response:
-                yield "Không tìm thấy thông tin phù hợp trong SGK hiện có."
+                yield FAIL_MESSAGE
                 return
 
-            # --- 4. HẬU KIỂM & RENDER (AUDIT LAYER) ---
-            # Cơ chế: Parse output, tìm thẻ [ID:...], check xem ID có trong valid_uids không.
-            # Nếu có: Thay thế bằng HTML badge. Nếu không: Báo lỗi hoặc ẩn.
+            # --- BƯỚC 4: AUDIT LAYER (HẬU KIỂM) ---
+            # Tìm tất cả các thẻ [ID:...] trong câu trả lời
+            id_pattern = r'\[ID:([a-zA-Z0-9]+)\]'
+            found_ids = re.findall(id_pattern, raw_response)
             
+            # Logic kiểm tra:
+            # 1. Phải có ít nhất 1 citation.
+            # 2. Tất cả ID tìm thấy PHẢI nằm trong valid_uids_map.
+            
+            if not found_ids:
+                # Không có citation nào -> HỦY
+                yield FAIL_MESSAGE
+                return
+            
+            # Kiểm tra Hallucination (ID ma)
+            is_valid = True
+            for fid in found_ids:
+                if fid not in valid_uids_map:
+                    is_valid = False
+                    break
+            
+            if not is_valid:
+                # Phát hiện ID bịa -> HỦY TOÀN BỘ
+                yield FAIL_MESSAGE
+                return
+
+            # Nếu hợp lệ -> Render HTML Badge
             processed_response = raw_response
+            # Dùng set để tránh lặp replacement
+            unique_found_ids = set(found_ids)
             
-            # Regex tìm tất cả [ID:xxxxxxxx]
-            pattern = r'\[ID:([a-zA-Z0-9]+)\]'
-            matches = list(re.finditer(pattern, processed_response))
+            for uid in unique_found_ids:
+                if uid in valid_uids_map:
+                    source_name = valid_uids_map[uid]
+                    html_badge = f"<span class='citation-source' title='Nguồn: {source_name}'>{source_name}</span>"
+                    # Replace toàn bộ [ID:uid] bằng badge
+                    processed_response = processed_response.replace(f"[ID:{uid}]", html_badge)
             
-            valid_citations_count = 0
-            
-            # Duyệt ngược để thay thế chuỗi không bị lệch index
-            for match in reversed(matches):
-                uid_found = match.group(1)
-                full_tag = match.group(0)
-                
-                if uid_found in valid_uids:
-                    # ID hợp lệ -> Thay bằng HTML Badge đẹp
-                    source_label = valid_uids[uid_found]
-                    html_badge = f"<span class='citation-source' title='Nguồn xác thực'>{source_label}</span>"
-                    
-                    start, end = match.span()
-                    processed_response = processed_response[:start] + html_badge + processed_response[end:]
-                    valid_citations_count += 1
-                else:
-                    # ID ảo (Hallucination) -> Xóa bỏ thẻ ID này khỏi hiển thị để tránh sai lệch
-                    start, end = match.span()
-                    processed_response = processed_response[:start] + processed_response[end:]
-            
-            # --- 5. ĐIỀU KIỆN DỪNG AN TOÀN ---
-            # Nếu LLM trả lời mà không có bất kỳ trích dẫn hợp lệ nào -> Đánh dấu là không kiểm chứng được
-            if valid_citations_count == 0 and len(matches) > 0:
-                 yield "Cảnh báo: Câu trả lời bị hệ thống từ chối do không trích xuất được nguồn chuẩn xác từ SGK. Vui lòng thử lại cụ thể hơn."
-            elif valid_citations_count == 0 and len(processed_response) > 20:
-                 # Trường hợp LLM quên trích dẫn nhưng nội dung có vẻ ổn -> Vẫn hiện nhưng warning
-                 yield processed_response + "\n\n*(Lưu ý: Hệ thống không tìm thấy thẻ trích dẫn chính xác cho nội dung này)*"
-            else:
-                 yield processed_response
+            # Yield kết quả cuối cùng
+            yield processed_response
 
         except Exception as e:
             yield f"Lỗi xử lý KHKT: {str(e)}"
@@ -627,6 +633,7 @@ def main():
         with st.chat_message("assistant", avatar=AppConfig.LOGO_PROJECT if os.path.exists(AppConfig.LOGO_PROJECT) else "🤖"):
             response_placeholder = st.empty()
             
+            # Gọi generator
             response_gen = RAGEngine.generate_response(
                 groq_client,
                 st.session_state.retriever_engine,
@@ -634,11 +641,11 @@ def main():
             )
 
             full_response = ""
+            # Vì logic mới buffer toàn bộ rồi mới yield, vòng lặp này thực tế chỉ chạy 1 lần với full text
+            # Nhưng giữ cấu trúc này để tương thích nếu sau này muốn streaming từng phần an toàn
             for chunk in response_gen:
                 full_response += chunk
-                response_placeholder.markdown(full_response + "▌", unsafe_allow_html=True)
-            
-            response_placeholder.markdown(full_response, unsafe_allow_html=True)
+                response_placeholder.markdown(full_response, unsafe_allow_html=True)
 
             st.session_state.messages.append({"role": "assistant", "content": full_response})
 
