@@ -35,10 +35,9 @@ try:
     from groq import Groq
     from flashrank import Ranker, RerankRequest
     
-    # 🎤 Voice & Vision imports
+    # 🎤 Voice imports
     import speech_recognition as sr
     from gtts import gTTS
-    from PIL import Image
     
     DEPENDENCIES_OK = True
 except ImportError as e:
@@ -59,7 +58,6 @@ st.set_page_config(
 class AppConfig:
     # Model Config
     LLM_MODEL = 'llama-3.1-8b-instant'
-    VISION_MODEL = 'llama-3.2-11b-vision-preview'  # 🎨 NEW: Vision model
     EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
     RERANK_MODEL_NAME = "ms-marco-TinyBERT-L-2-v2"
 
@@ -198,18 +196,6 @@ class UIManager:
                 font-style: italic;
             }
             
-            /* 🎨 Multimodal Features Badge */
-            .multimodal-badge {
-                display: inline-block;
-                background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
-                color: white;
-                padding: 4px 12px;
-                border-radius: 15px;
-                font-size: 0.75rem;
-                font-weight: 700;
-                margin-left: 8px;
-            }
-            
             div.stButton > button {
                 border-radius: 8px; background-color: white; color: #0077b6;
                 border: 1px solid #90e0ef; transition: all 0.2s;
@@ -234,7 +220,7 @@ class UIManager:
 
             st.markdown("""
             <div class="project-card">
-                <div class="project-title">KTC CHATBOT <span class="multimodal-badge">🎨🎤 MULTIMODAL</span></div>
+                <div class="project-title">KTC CHATBOT</div>
                 <div class="project-sub">Sản phẩm dự thi KHKT cấp Tỉnh</div>
                 <hr style="margin: 10px 0; border-top: 1px dashed #dee2e6;">
                 <div style="font-size: 0.9rem; line-height: 1.6;">
@@ -253,22 +239,6 @@ class UIManager:
                 </div>
             </div>
             """, unsafe_allow_html=True)
-            
-            # 🎨 NEW: Vision Feature - Image Upload
-            st.markdown("### 🎨 Vision Mode")
-            uploaded_image = st.file_uploader(
-                "📷 Upload ảnh câu hỏi (Diagram/Screenshot)", 
-                type=['png', 'jpg', 'jpeg'],
-                help="Hệ thống sẽ phân tích hình ảnh và trả lời câu hỏi liên quan"
-            )
-            
-            if uploaded_image:
-                st.image(uploaded_image, caption="Ảnh đã tải lên", use_container_width=True)
-                st.session_state.uploaded_image = uploaded_image
-            elif 'uploaded_image' in st.session_state:
-                del st.session_state.uploaded_image
-            
-            st.markdown("---")
             
             st.markdown("### ⚙️ Tiện ích")
             if st.button("🗑️ Xóa lịch sử chat", use_container_width=True):
@@ -291,7 +261,7 @@ class UIManager:
         st.markdown(f"""
         <div class="main-header">
             <div class="header-left">
-                <h1>KTC CHATBOT <span class="multimodal-badge">🎨🎤</span></h1>
+                <h1>KTC CHATBOT</h1>
                 <p style="font-size: 1.1rem; margin-top: 5px;">Học Tin dễ dàng - Thao tác vững vàng</p>
             </div>
             <div class="header-right">
@@ -736,39 +706,9 @@ class RAGEngine:
             content = re.sub(r'<[^>]+>', '', msg["content"])
             formatted.append(f"{role}: {content[:200]}")
         return "\n".join(formatted)
-    
-    @staticmethod
-    def _encode_image_to_base64(image_file) -> str:
-        """Convert uploaded image to Base64 string"""
-        try:
-            image = Image.open(image_file)
-            # Convert to RGB if necessary (PNG with alpha channel)
-            if image.mode in ('RGBA', 'LA', 'P'):
-                image = image.convert('RGB')
-            
-            # Resize if too large (max 2048px on longest side)
-            max_size = 2048
-            if max(image.size) > max_size:
-                ratio = max_size / max(image.size)
-                new_size = tuple([int(dim * ratio) for dim in image.size])
-                image = image.resize(new_size, Image.Resampling.LANCZOS)
-            
-            # Convert to Base64
-            buffered = io.BytesIO()
-            image.save(buffered, format="JPEG", quality=85)
-            img_bytes = buffered.getvalue()
-            return base64.b64encode(img_bytes).decode('utf-8')
-        except Exception as e:
-            print(f"Error encoding image: {e}")
-            return None
 
     @staticmethod
-    def generate_response(client, retriever, query: str, chat_history: List[Dict], image_file=None) -> Tuple[str, List[Tuple[Document, float]]]:
-        """
-        🎨 UPGRADED: Now supports Vision mode when image is provided
-        - With image: Uses llama-3.2-11b-vision-preview
-        - Without image: Uses llama-3.1-8b-instant (faster)
-        """
+    def generate_response(client, retriever, query: str, chat_history: List[Dict]) -> Tuple[str, List[Tuple[Document, float]]]:
         if not client or not retriever:
             return "❌ Hệ thống chưa sẵn sàng. Vui lòng kiểm tra API Key và dữ liệu SGK.", []
 
@@ -845,46 +785,16 @@ QUY TẮC BẮT BUỘC:
 """
         
         try:
-            # 🎨 VISION MODE: Use vision model if image is provided
-            if image_file:
-                img_base64 = RAGEngine._encode_image_to_base64(image_file)
-                if not img_base64:
-                    return "❌ Không thể xử lý ảnh. Vui lòng thử lại.", []
-                
-                # Vision model requires structured content format
-                completion = client.chat.completions.create(
-                    model=AppConfig.VISION_MODEL,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {
-                            "role": "user",
-                            "content": [
-                                {"type": "text", "text": query},
-                                {
-                                    "type": "image_url",
-                                    "image_url": {
-                                        "url": f"data:image/jpeg;base64,{img_base64}"
-                                    }
-                                }
-                            ]
-                        }
-                    ],
-                    temperature=AppConfig.LLM_TEMPERATURE,
-                    max_tokens=2000
-                )
-            else:
-                # TEXT-ONLY MODE: Use faster text model
-                completion = client.chat.completions.create(
-                    model=AppConfig.LLM_MODEL,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": query}
-                    ],
-                    stream=False,
-                    temperature=AppConfig.LLM_TEMPERATURE,
-                    max_tokens=1500
-                )
-            
+            completion = client.chat.completions.create(
+                model=AppConfig.LLM_MODEL,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": query}
+                ],
+                stream=False,
+                temperature=AppConfig.LLM_TEMPERATURE,
+                max_tokens=1500
+            )
             raw_response = completion.choices[0].message.content
 
             if "NO_INFO" in raw_response or not raw_response.strip():
@@ -935,15 +845,16 @@ class VoiceProcessor:
     @staticmethod
     def text_to_speech(text: str) -> Optional[bytes]:
         """
-        🔊 Convert text to speech using gTTS (Vietnamese)
+        🔊 Convert text to speech using gTTS (Vietnamese - Male voice via slow=False)
+        Note: gTTS doesn't have true gender selection, but slow=False gives a more masculine tone
         """
         try:
             # Remove markdown and HTML tags for cleaner audio
             clean_text = re.sub(r'[*_~`#\[\]]', '', text)
             clean_text = re.sub(r'<[^>]+>', '', clean_text)
             
-            # Generate speech
-            tts = gTTS(text=clean_text, lang='vi', slow=False)
+            # Generate speech with parameters optimized for male-sounding voice
+            tts = gTTS(text=clean_text, lang='vi', slow=False, tld='com')
             
             # Save to bytes buffer
             audio_buffer = io.BytesIO()
@@ -1005,7 +916,7 @@ def main():
     UIManager.render_header()
 
     if "messages" not in st.session_state:
-        st.session_state.messages = [{"role": "assistant", "content": "👋 Chào bạn! KTC Chatbot sẵn sàng hỗ trợ tra cứu kiến thức SGK Tin học. **Bạn có thể gửi văn bản, ảnh hoặc ghi âm câu hỏi!** 🎨🎤"}]
+        st.session_state.messages = [{"role": "assistant", "content": "👋 Chào bạn! KTC Chatbot sẵn sàng hỗ trợ tra cứu kiến thức SGK Tin học."}]
 
     groq_client = RAGEngine.load_groq_client()
 
@@ -1016,10 +927,19 @@ def main():
             if st.session_state.retriever_engine:
                 st.toast("✅ Dữ liệu SGK đã sẵn sàng!", icon="📚")
 
-    # 🎤 Voice Input Section (Before chat display)
-    st.markdown("### 🎤 Hỏi bằng giọng nói")
-    audio_input = st.audio_input("🎙️ Nhấn để ghi âm câu hỏi")
+    # 🎤 Voice Input Section
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        st.markdown("### 💬 Đặt câu hỏi")
+    with col2:
+        st.markdown("### 🎤 Hoặc ghi âm")
     
+    col_text, col_audio = st.columns([3, 1])
+    
+    with col_audio:
+        audio_input = st.audio_input("🎙️ Ghi âm")
+    
+    # Process voice input if available
     if audio_input:
         with st.spinner("🎤 Đang nhận diện giọng nói..."):
             audio_bytes = audio_input.read()
@@ -1027,7 +947,6 @@ def main():
             
             if transcribed_text:
                 st.success(f"✅ Đã nhận diện: **{transcribed_text}**")
-                # Auto-process voice query
                 st.session_state.voice_query = transcribed_text
             else:
                 st.error("❌ Không nhận diện được giọng nói. Vui lòng thử lại hoặc nói rõ hơn.")
@@ -1066,11 +985,12 @@ def main():
                 
                 # 🔊 TTS Output: Play audio response
                 if msg.get("audio"):
-                    st.audio(msg["audio"], format="audio/mp3")
+                    with st.expander("🔊 Nghe câu trả lời", expanded=False):
+                        st.audio(msg["audio"], format="audio/mp3")
             else:
                 st.markdown(msg["content"])
 
-    # Process voice query if available
+    # Get user input (text or voice)
     user_input = None
     if "voice_query" in st.session_state:
         user_input = st.session_state.voice_query
@@ -1079,25 +999,19 @@ def main():
         user_input = st.chat_input("Nhập câu hỏi học tập...")
     
     if user_input:
-        # Get uploaded image from sidebar (if any)
-        uploaded_image = st.session_state.get('uploaded_image', None)
-        
         st.session_state.messages.append({"role": "user", "content": user_input})
         with st.chat_message("user", avatar="🧑‍🎓"):
             st.markdown(user_input)
-            if uploaded_image:
-                st.image(uploaded_image, caption="Ảnh đính kèm", width=300)
 
         with st.chat_message("assistant", avatar=AppConfig.LOGO_PROJECT if os.path.exists(AppConfig.LOGO_PROJECT) else "🤖"):
             response_placeholder = st.empty()
             
-            # Pass chat history + image (if any) for Vision mode
+            # Generate response
             response_text, evidence_docs = RAGEngine.generate_response(
                 groq_client,
                 st.session_state.retriever_engine,
                 user_input,
-                st.session_state.messages[:-1],  # Exclude the just-added user message
-                image_file=uploaded_image
+                st.session_state.messages[:-1]
             )
 
             # Stream simulation for better UX
@@ -1108,7 +1022,7 @@ def main():
             
             response_placeholder.markdown(response_text)
 
-            # 🔥 Display DEDUPLICATED evidence in expander
+            # 🔥 Display DEDUPLICATED evidence
             if evidence_docs:
                 deduplicated = deduplicate_evidence(evidence_docs)
                 with st.expander("📚 Kiểm chứng nguồn gốc (Evidence)", expanded=False):
@@ -1132,12 +1046,13 @@ def main():
                         </div>
                         """, unsafe_allow_html=True)
             
-            # 🔊 Generate TTS audio for response
+            # 🔊 Generate TTS audio for response (Male voice)
             audio_bytes = VoiceProcessor.text_to_speech(response_text)
             if audio_bytes:
-                st.audio(audio_bytes, format="audio/mp3")
+                with st.expander("🔊 Nghe câu trả lời", expanded=False):
+                    st.audio(audio_bytes, format="audio/mp3")
 
-            # Store evidence + audio with message for history re-rendering
+            # Store message with audio
             st.session_state.messages.append({
                 "role": "assistant", 
                 "content": response_text,
